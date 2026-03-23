@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RestaurantOS — Setup
 
-## Getting Started
+## Requisitos previos
+- Node.js 20+
+- Proyecto en Supabase con el schema ejecutado
+- Cuenta en Vercel (para deploy)
 
-First, run the development server:
+## Instalación
 
 ```bash
+# 1. Instalar dependencias
+npm install @supabase/supabase-js @supabase/ssr
+npm install @vercel/analytics @vercel/speed-insights
+npm install react-hook-form @hookform/resolvers zod
+npm install sonner recharts
+npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+npm install date-fns
+npm install lucide-react
+
+# 2. Instalar shadcn/ui
+npx shadcn@latest init
+npx shadcn@latest add button input label card dialog sheet badge toast tabs select switch skeleton avatar dropdown-menu form table
+
+# 3. Copiar variables de entorno
+cp .env.local.example .env.local
+# Editar .env.local con tus keys de Supabase
+
+# 4. Generar tipos de TypeScript
+mkdir src/types
+supabase gen types typescript --project-id TU_PROJECT_ID > src/types/database.ts
+
+# 5. Correr en desarrollo
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Estructura
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+  app/
+    (admin)/dashboard/     → Panel de administración
+    (public)/[slug]/       → Storefront público del restaurante
+    auth/                  → Login y onboarding
+  components/
+    admin/                 → Componentes del panel admin
+    public/                → Componentes del storefront
+    kitchen/               → Pantalla de cocina
+    pos/                   → Terminal de punto de venta
+  lib/
+    supabase/              → Clientes browser y server
+    utils/                 → Utilidades
+  types/
+    database.ts            → Tipos generados por Supabase CLI
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Módulos implementados
 
-## Learn More
+- [x] Auth (login, signup, logout)
+- [x] Onboarding (crear restaurante)
+- [x] Dashboard con stats y pedidos activos en tiempo real
+- [x] Gestión de menús, categorías y productos
+- [x] Descuentos automáticos y cupones con código
+- [x] Pedidos en tiempo real (Kanban)
+- [x] Pantalla de cocina (tickets en tiempo real)
+- [x] POS — punto de venta con sesiones de caja
+- [x] Configuración del restaurante (colores, horarios, delivery)
+- [x] Reportes de ventas con gráficas (Recharts)
+- [x] Storefront público para clientes
+- [x] Seguimiento de pedido en tiempo real
+- [x] PWA manifest
+- [x] Vercel Analytics + Speed Insights
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy en Vercel
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Push a GitHub
+2. Conectar repo en vercel.com
+3. Agregar variables de entorno en Vercel Dashboard
+4. Deploy automático en cada push a main
+```
