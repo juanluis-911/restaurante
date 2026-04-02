@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = body.items.map((item) => ({
     price_data: {
       currency:     'mxn',
-      unit_amount:  Math.round(item.unit_price * 100), // ya es precio descontado
+      unit_amount:  Math.max(0, Math.round(item.unit_price * 100)),
       product_data: { name: item.name },
     },
     quantity: item.quantity,
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     lineItems.push({
       price_data: {
         currency:    'mxn',
-        unit_amount: Math.round(body.delivery_fee * 100),
+        unit_amount: Math.max(0, Math.round(body.delivery_fee * 100)),
         product_data: { name: 'Costo de envío' },
       },
       quantity: 1,

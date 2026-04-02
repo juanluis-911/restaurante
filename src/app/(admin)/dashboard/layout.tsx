@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import DashboardSidebar from '@/components/admin/DashboardSidebar'
 import DashboardHeader from '@/components/admin/DashboardHeader'
@@ -23,7 +24,8 @@ export default async function DashboardLayout({
   if (!restaurant) redirect('/auth/onboarding')
 
   // Si el restaurante está suspendido, redirigir a billing (excepto si ya está ahí)
-  if (restaurant.billing_status === 'suspended') {
+  const pathname = (await headers()).get('x-pathname') ?? ''
+  if (restaurant.billing_status === 'suspended' && !pathname.startsWith('/dashboard/billing')) {
     redirect('/dashboard/billing')
   }
 

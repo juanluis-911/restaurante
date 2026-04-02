@@ -99,7 +99,7 @@ export default function StorefrontClient({
       )
     )
     if (!d) return Number(product.price)
-    if (d.type === 'percentage') return Number(product.price) * (1 - Number(d.value) / 100)
+    if (d.type === 'percentage') return Math.max(0, Number(product.price) * (1 - Number(d.value) / 100))
     if (d.type === 'fixed')      return Math.max(0, Number(product.price) - Number(d.value))
     return Number(product.price)
   }
