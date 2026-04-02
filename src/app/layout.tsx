@@ -7,8 +7,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Restaurant App',
-  description: 'Gestión y pedidos para tu restaurante',
+  title: 'TuriEats',
+  description: 'Pide en línea en tus restaurantes favoritos – TuriEats',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

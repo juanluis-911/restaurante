@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { isRestaurantOpen, formatCurrency } from '@/lib/utils/helpers'
 import { MapPin, Truck, Clock, ChevronDown, UtensilsCrossed } from 'lucide-react'
@@ -19,9 +20,15 @@ export default async function LandingPage() {
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-semibold text-lg">
-            <UtensilsCrossed size={20} className="text-primary" />
-            <span>FoodApp</span>
+          <div className="flex items-center gap-2">
+            <Image
+              src="/turieats.png"
+              alt="TuriEats"
+              width={120}
+              height={36}
+              className="h-8 w-auto object-contain"
+              priority
+            />
           </div>
           <Link
             href="/auth/login"
@@ -181,7 +188,7 @@ export default async function LandingPage() {
 
       {/* ── Footer ─────────────────────────────────────────── */}
       <footer className="border-t py-6 px-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} FoodApp · Todos los derechos reservados
+        © {new Date().getFullYear()} TuriEats · Todos los derechos reservados
       </footer>
     </div>
   )
