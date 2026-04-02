@@ -52,26 +52,15 @@ export async function POST(request: NextRequest) {
   }
 
   // Construir line_items para Stripe
+  // unit_price ya viene con descuento aplicado — no agregar línea negativa
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = body.items.map((item) => ({
     price_data: {
       currency:     'mxn',
-      unit_amount:  Math.round(item.unit_price * 100),
+      unit_amount:  Math.round(item.unit_price * 100), // ya es precio descontado
       product_data: { name: item.name },
     },
     quantity: item.quantity,
   }))
-
-  // Descuentos como línea negativa
-  if (body.discount_amount > 0) {
-    lineItems.push({
-      price_data: {
-        currency:    'mxn',
-        unit_amount: -Math.round(body.discount_amount * 100),
-        product_data: { name: 'Descuento aplicado' },
-      },
-      quantity: 1,
-    })
-  }
 
   // Envío como línea si aplica
   if (body.order_type === 'delivery' && body.delivery_fee > 0) {
