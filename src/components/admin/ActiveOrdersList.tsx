@@ -94,7 +94,7 @@ export default function ActiveOrdersList({ initialOrders, restaurantId }: Props)
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="font-medium text-sm">#{order.id.slice(-6).toUpperCase()}</span>
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -106,6 +106,11 @@ export default function ActiveOrdersList({ initialOrders, restaurantId }: Props)
                     <Badge variant="outline" className="text-xs">
                       {order.order_type === 'dine_in' ? 'Mesa' : order.order_type === 'pickup' ? 'Para llevar' : 'Delivery'}
                     </Badge>
+                    {order.stripe_session_id && (
+                      <Badge className="text-xs bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100">
+                        💳 Pagado
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">
                     {order.customer_name} · {summary}{more}

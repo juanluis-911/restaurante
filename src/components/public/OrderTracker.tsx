@@ -146,6 +146,11 @@ export default function OrderTracker({ initialOrder }: Props) {
             <span>Total</span>
             <span>{formatCurrency(Number(order.total))}</span>
           </div>
+          {order.stripe_session_id && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-violet-700 bg-violet-50 rounded-lg px-3 py-1.5">
+              💳 Pagado con tarjeta
+            </div>
+          )}
         </div>
 
         {/* Tipo de orden */}

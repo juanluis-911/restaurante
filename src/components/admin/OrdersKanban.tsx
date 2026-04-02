@@ -196,6 +196,11 @@ export default function OrdersKanban({ initialOrders, restaurantId }: Props) {
                               <Badge variant="secondary" className="text-xs">
                                 {order.source === 'pos' ? 'POS' : 'Online'}
                               </Badge>
+                              {order.stripe_session_id && (
+                                <Badge className="text-xs bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100">
+                                  💳 Pagado
+                                </Badge>
+                              )}
                             </div>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">

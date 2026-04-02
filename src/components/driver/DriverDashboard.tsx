@@ -26,6 +26,7 @@ type Order = {
   created_at: string
   status: string
   driver_id: string | null
+  stripe_session_id: string | null
   restaurants: { name: string; primary_color: string; slug: string } | null
 }
 
@@ -220,6 +221,11 @@ export default function DriverDashboard({ driver: initialDriver, availableOrders
                 <div>
                   <p className="font-semibold">{activeOrder.restaurants?.name}</p>
                   <p className="text-sm text-muted-foreground">Para: {activeOrder.customer_name}</p>
+                  {activeOrder.stripe_session_id && (
+                    <span className="inline-flex items-center gap-1 text-xs text-violet-700 bg-violet-50 rounded-full px-2 py-0.5 mt-1">
+                      💳 Pagado con tarjeta
+                    </span>
+                  )}
                 </div>
                 <span className="font-bold text-lg">{formatCurrency(Number(activeOrder.total))}</span>
               </div>
@@ -292,6 +298,11 @@ export default function DriverDashboard({ driver: initialDriver, availableOrders
                         <div>
                           <p className="font-semibold">{order.restaurants?.name}</p>
                           <p className="text-sm text-muted-foreground">Para: {order.customer_name}</p>
+                          {order.stripe_session_id && (
+                            <span className="inline-flex items-center gap-1 text-xs text-violet-700 bg-violet-50 rounded-full px-2 py-0.5 mt-1">
+                              💳 Pagado con tarjeta
+                            </span>
+                          )}
                         </div>
                         <span className="font-bold text-base">{formatCurrency(Number(order.total))}</span>
                       </div>
