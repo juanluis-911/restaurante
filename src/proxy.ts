@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -31,11 +31,6 @@ export async function middleware(request: NextRequest) {
   // Proteger rutas del dashboard
   if (pathname.startsWith('/dashboard') && !user) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
-  }
-
-  // Si ya está logueado y va al login, redirigir al dashboard
-  if (pathname.startsWith('/auth/login') && user) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return supabaseResponse

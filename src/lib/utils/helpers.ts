@@ -49,6 +49,9 @@ export function isRestaurantOpen(
   hours: { day_of_week: number; open_time: string | null; close_time: string | null; is_closed: boolean }[],
   timezone: string
 ): boolean {
+  // No hours configured → assume open
+  if (!hours || hours.length === 0) return true
+
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: timezone }))
   const day = now.getDay()
   const currentMinutes = now.getHours() * 60 + now.getMinutes()

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import KitchenBoard from '@/components/kitchen/KitchenBoard'
+import { getActiveRestaurant } from '@/lib/utils/get-active-restaurant'
 
 export default async function KitchenPage() {
   const supabase = await createClient()
@@ -8,12 +9,7 @@ export default async function KitchenPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: restaurant } = await supabase
-    .from('restaurants')
-    .select('id, name, primary_color')
-    .eq('owner_id', user.id)
-    .single()
-
+  const { restaurant } = await getActiveRestaurant(user.id, supabase)
   if (!restaurant) redirect('/auth/onboarding')
 
   const { data: tickets } = await supabase
@@ -31,7 +27,8 @@ export default async function KitchenPage() {
           {new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
         </span>
       </div>
-      <KitchenBoard initialTickets={tickets ?? []} restaurantId={restaurant.id} />
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <KitchenBoard initialTickets={(tickets ?? []) as any} restaurantId={restaurant.id} />
     </div>
   )
 }

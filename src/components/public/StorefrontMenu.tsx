@@ -41,22 +41,41 @@ export default function StorefrontMenu({ restaurant, menus, discounts }: Props) 
     order_type: 'pickup' as 'dine_in' | 'pickup' | 'delivery',
     notes: '', coupon_code: '',
   })
+  const [couponDiscount, setCouponDiscount] = useState<Discount | null>(null)
+  const [couponValidating, setCouponValidating] = useState(false)
 
   const currentMenu = menus.find((m) => m.id === activeMenu)
-  const cartTotal = cart.reduce((s, i) => s + Number(i.price) * i.quantity, 0)
-  const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
   const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n)
 
   function getDiscountedPrice(product: Product): number {
     const applicable = discounts.find((d) =>
-      d.scope === 'all' ||
-      (d.scope === 'product' && d.target_ids.includes(product.id))
+      d.is_active && (
+        d.scope === 'all' ||
+        (d.scope === 'product' && d.target_ids.includes(product.id))
+      )
     )
     if (!applicable) return Number(product.price)
     if (applicable.type === 'percentage') return Number(product.price) * (1 - Number(applicable.value) / 100)
     if (applicable.type === 'fixed') return Math.max(0, Number(product.price) - Number(applicable.value))
     return Number(product.price)
   }
+
+  const cartSubtotal = cart.reduce((s, i) => s + Number(i.price) * i.quantity, 0)
+  const cartDiscounted = cart.reduce((s, i) => s + getDiscountedPrice(i) * i.quantity, 0)
+  const autoDiscountAmount = cartSubtotal - cartDiscounted
+
+  const couponAmount = useMemo(() => {
+    if (!couponDiscount) return 0
+    if (couponDiscount.type === 'percentage')
+      return cartDiscounted * (Number(couponDiscount.value) / 100)
+    if (couponDiscount.type === 'fixed')
+      return Math.min(Number(couponDiscount.value), cartDiscounted)
+    return 0
+  }, [couponDiscount, cartDiscounted])
+
+  const totalDiscount = autoDiscountAmount + couponAmount
+  const cartTotal = Math.max(0, cartSubtotal - totalDiscount)
+  const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
 
   function addToCart(product: Product) {
     setCart((prev) => {
@@ -72,6 +91,39 @@ export default function StorefrontMenu({ restaurant, menus, discounts }: Props) 
       prev.map((i) => i.id === id ? { ...i, quantity: Math.max(0, i.quantity + delta) } : i)
         .filter((i) => i.quantity > 0)
     )
+  }
+
+  async function validateCoupon() {
+    const code = form.coupon_code.trim().toUpperCase()
+    if (!code) return
+    setCouponValidating(true)
+    try {
+      const { data: coupon } = await supabase
+        .from('coupons')
+        .select('*, discounts(*)')
+        .eq('restaurant_id', restaurant.id)
+        .eq('code', code)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (!coupon) { toast.error('Cupón inválido o inactivo'); return }
+      if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+        toast.error('Este cupón ya venció'); return
+      }
+      if (coupon.max_uses && coupon.used_count >= coupon.max_uses) {
+        toast.error('Este cupón ya alcanzó su límite de usos'); return
+      }
+
+      const discount = coupon.discounts as unknown as Discount
+      setCouponDiscount(discount)
+      toast.success(`Cupón "${code}" aplicado`)
+    } catch { toast.error('Error al validar el cupón') }
+    finally { setCouponValidating(false) }
+  }
+
+  function removeCoupon() {
+    setCouponDiscount(null)
+    setForm((p) => ({ ...p, coupon_code: '' }))
   }
 
   async function placeOrder() {
@@ -93,10 +145,11 @@ export default function StorefrontMenu({ restaurant, menus, discounts }: Props) 
           customer_phone: form.customer_phone,
           customer_email: form.customer_email || null,
           notes: form.notes || null,
+          coupon_code: couponDiscount ? form.coupon_code.toUpperCase() : null,
           items,
-          subtotal: cartTotal,
+          subtotal: cartSubtotal,
+          discount_amount: totalDiscount,
           total: cartTotal,
-          discount_amount: 0,
           status: 'received',
         })
         .select()
@@ -104,7 +157,25 @@ export default function StorefrontMenu({ restaurant, menus, discounts }: Props) 
 
       if (error) throw error
 
+      // Incrementar contador de usos del cupón
+      if (couponDiscount) {
+        const { data: coup } = await supabase
+          .from('coupons')
+          .select('used_count')
+          .eq('code', form.coupon_code.toUpperCase())
+          .eq('restaurant_id', restaurant.id)
+          .single()
+        if (coup) {
+          await supabase
+            .from('coupons')
+            .update({ used_count: coup.used_count + 1 })
+            .eq('code', form.coupon_code.toUpperCase())
+            .eq('restaurant_id', restaurant.id)
+        }
+      }
+
       setCart([])
+      setCouponDiscount(null)
       setCheckoutOpen(false)
       toast.success('¡Pedido enviado! Te notificaremos cuando esté listo.')
       window.location.href = `/${restaurant.slug}/order/${order.id}`
@@ -267,7 +338,7 @@ export default function StorefrontMenu({ restaurant, menus, discounts }: Props) 
               <Label>Tipo de pedido</Label>
               <div className="flex gap-2">
                 {(['pickup', 'dine_in', ...(restaurant.delivery_enabled ? ['delivery'] : [])] as const).map((t) => (
-                  <button key={t} onClick={() => setForm((p) => ({ ...p, order_type: t }))}
+                  <button key={t} onClick={() => setForm((p) => ({ ...p, order_type: t as 'dine_in' | 'pickup' | 'delivery' }))}
                     className={`flex-1 text-sm py-2 rounded border transition-colors ${form.order_type === t ? 'text-white' : 'hover:bg-muted'}`}
                     style={form.order_type === t ? { backgroundColor: restaurant.primary_color } : {}}>
                     {t === 'dine_in' ? 'Mesa' : t === 'pickup' ? 'Recoger' : 'Domicilio'}
@@ -280,9 +351,60 @@ export default function StorefrontMenu({ restaurant, menus, discounts }: Props) 
               <Input placeholder="Sin cebolla, extra salsa..." value={form.notes}
                 onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
             </div>
-            <div className="border-t pt-3 flex justify-between font-bold">
-              <span>Total</span><span>{fmt(cartTotal)}</span>
+
+            {/* Cupón */}
+            <div className="space-y-2">
+              <Label>Código de cupón</Label>
+              {couponDiscount ? (
+                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  <div>
+                    <p className="text-sm font-semibold text-green-700">{form.coupon_code.toUpperCase()}</p>
+                    <p className="text-xs text-green-600">
+                      {couponDiscount.type === 'percentage'
+                        ? `${couponDiscount.value}% de descuento`
+                        : `${fmt(Number(couponDiscount.value))} de descuento`}
+                    </p>
+                  </div>
+                  <button onClick={removeCoupon} className="text-green-600 hover:text-green-800">
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="CODIGO123"
+                    value={form.coupon_code}
+                    onChange={(e) => setForm((p) => ({ ...p, coupon_code: e.target.value.toUpperCase() }))}
+                    className="font-mono uppercase"
+                  />
+                  <Button variant="outline" onClick={validateCoupon}
+                    disabled={couponValidating || !form.coupon_code.trim()}>
+                    {couponValidating ? '...' : 'Aplicar'}
+                  </Button>
+                </div>
+              )}
             </div>
+
+            {/* Resumen de precios */}
+            <div className="border-t pt-3 space-y-1.5">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Subtotal</span><span>{fmt(cartSubtotal)}</span>
+              </div>
+              {autoDiscountAmount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Descuento automático</span><span>-{fmt(autoDiscountAmount)}</span>
+                </div>
+              )}
+              {couponAmount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Cupón {form.coupon_code.toUpperCase()}</span><span>-{fmt(couponAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-base pt-1 border-t">
+                <span>Total</span><span>{fmt(cartTotal)}</span>
+              </div>
+            </div>
+
             <Button className="w-full" style={{ backgroundColor: restaurant.primary_color }}
               onClick={placeOrder} disabled={loading || !form.customer_name}>
               {loading ? 'Enviando...' : `Confirmar pedido ${fmt(cartTotal)}`}

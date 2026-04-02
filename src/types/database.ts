@@ -355,6 +355,42 @@ export type Database = {
           },
         ]
       }
+      drivers: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          status: string
+          updated_at: string
+          user_id: string
+          vehicle_type: string
+          whatsapp: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          vehicle_type: string
+          whatsapp: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          vehicle_type?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           cancellation_reason: string | null
@@ -367,6 +403,7 @@ export type Database = {
           delivery_address: Json | null
           delivery_fee: number
           discount_amount: number
+          driver_id: string | null
           estimated_time_min: number | null
           id: string
           items: Json
@@ -393,6 +430,7 @@ export type Database = {
           delivery_address?: Json | null
           delivery_fee?: number
           discount_amount?: number
+          driver_id?: string | null
           estimated_time_min?: number | null
           id?: string
           items?: Json
@@ -419,6 +457,7 @@ export type Database = {
           delivery_address?: Json | null
           delivery_fee?: number
           discount_amount?: number
+          driver_id?: string | null
           estimated_time_min?: number | null
           id?: string
           items?: Json
@@ -671,6 +710,27 @@ export type Database = {
           },
         ]
       }
+      restaurant_drivers: {
+        Row: {
+          created_at: string
+          driver_id: string
+          id: string
+          restaurant_id: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          id?: string
+          restaurant_id: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          id?: string
+          restaurant_id?: string
+        }
+        Relationships: []
+      }
       restaurants: {
         Row: {
           address: string | null
@@ -679,6 +739,7 @@ export type Database = {
           delivery_fee: number
           delivery_min_order: number
           delivery_radius_km: number | null
+          driver_mode: string
           font_choice: string
           id: string
           is_active: boolean
@@ -701,6 +762,7 @@ export type Database = {
           delivery_fee?: number
           delivery_min_order?: number
           delivery_radius_km?: number | null
+          driver_mode?: string
           font_choice?: string
           id?: string
           is_active?: boolean
@@ -723,6 +785,7 @@ export type Database = {
           delivery_fee?: number
           delivery_min_order?: number
           delivery_radius_km?: number | null
+          driver_mode?: string
           font_choice?: string
           id?: string
           is_active?: boolean
@@ -737,6 +800,24 @@ export type Database = {
           timezone?: string
           updated_at?: string
           whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          role: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
         }
         Relationships: []
       }

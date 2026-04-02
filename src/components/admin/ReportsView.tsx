@@ -102,7 +102,7 @@ export default function ReportsView({ orders, transactions }: Props) {
               <BarChart data={byDay} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} width={55} />
-                <Tooltip formatter={(v: number) => fmt(v)} />
+                <Tooltip formatter={(v) => fmt(Number(v))} />
                 <Bar dataKey="total" fill="#3b82f6" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

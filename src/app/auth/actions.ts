@@ -22,15 +22,15 @@ export async function login(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No se pudo obtener el usuario' }
 
-  const { data: restaurant } = await supabase
+  const { data: restaurants } = await supabase
     .from('restaurants')
     .select('id')
     .eq('owner_id', user.id)
-    .single()
+    .limit(1)
 
   revalidatePath('/', 'layout')
 
-  if (!restaurant) {
+  if (!restaurants?.length) {
     redirect('/auth/onboarding')
   }
 

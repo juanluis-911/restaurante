@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"/c/- DESARROLLOS/restaurante/src/app/\\(admin\\)/dashboard\" -type f -name \"page.tsx\")",
+      "Bash(npx tsc:*)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":3000\")",
+      "Bash(findstr LISTENING)",
+      "Bash(taskkill /PID 22136 /F)",
+      "Bash(taskkill //PID 22136 //F)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(ngrok config:*)",
+      "Bash(where ngrok:*)",
+      "Bash(winget list:*)",
+      "Read(//c/Users/JuanLuisRuiz/AppData/Local/**)",
+      "Read(//c/ProgramData/**)",
+      "Bash(npm list:*)",
+      "Read(//c/Users/JuanLuisRuiz/AppData/Roaming/npm/**)",
+      "Bash(ngrok version:*)",
+      "Bash(findstr \":300\")",
+      "Bash(xargs grep:*)",
+      "Bash(grep -r \"middleware-to-proxy\\\\|proxy\" 'c:/- DESARROLLOS/restaurante/node_modules/next/dist/' --include=*.js -l)",
+      "Bash(grep -r middleware-to-proxy 'c:/- DESARROLLOS/restaurante/node_modules/next/dist/server/' --include=*.js -l)",
+      "Read(//c//**)",
+      "Read(//c/- DESARROLLOS//**)",
+      "Bash(find '/c/- DESARROLLOS/_MEDICOS/mediflow' -name *.tsx)",
+      "Bash(node -e \"const p = require\\(''./package.json''\\); console.log\\(''next:'', p.dependencies.next\\)\")"
+    ]
+  }
+}

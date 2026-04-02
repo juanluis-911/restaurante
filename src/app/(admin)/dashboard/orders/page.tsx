@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import OrdersKanban from '@/components/admin/OrdersKanban'
+import { getActiveRestaurant } from '@/lib/utils/get-active-restaurant'
 
 export default async function OrdersPage() {
   const supabase = await createClient()
@@ -8,12 +9,7 @@ export default async function OrdersPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: restaurant } = await supabase
-    .from('restaurants')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single()
-
+  const { restaurant } = await getActiveRestaurant(user.id, supabase)
   if (!restaurant) redirect('/auth/onboarding')
 
   const { data: orders } = await supabase
@@ -26,8 +22,8 @@ export default async function OrdersPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Pedidos</h1>
-        <p className="text-muted-foreground text-sm mt-1">Vista en tiempo real de todos los pedidos activos</p>
+        <h1 className="text-2xl font-semibold">Órdenes</h1>
+        <p className="text-muted-foreground text-sm mt-1">Gestión completa del flujo de pedidos en tiempo real</p>
       </div>
       <OrdersKanban initialOrders={orders ?? []} restaurantId={restaurant.id} />
     </div>

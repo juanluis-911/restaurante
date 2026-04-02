@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import SettingsForm from '@/components/admin/SettingsForm'
+import { getActiveRestaurant } from '@/lib/utils/get-active-restaurant'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -8,12 +9,7 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: restaurant } = await supabase
-    .from('restaurants')
-    .select('*')
-    .eq('owner_id', user.id)
-    .single()
-
+  const { restaurant } = await getActiveRestaurant(user.id, supabase)
   if (!restaurant) redirect('/auth/onboarding')
 
   const { data: hours } = await supabase

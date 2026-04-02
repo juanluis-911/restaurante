@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/helpers'
-import { CheckCircle2, Circle, Clock } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, MessageCircle, Bike, Car, Zap } from 'lucide-react'
 import type { Database } from '@/types/database'
 
 type Order = Database['public']['Tables']['orders']['Row'] & {
@@ -13,7 +13,15 @@ type Order = Database['public']['Tables']['orders']['Row'] & {
     logo_url?: string | null
     phone?: string | null
   } | null
+  drivers?: {
+    name: string
+    whatsapp: string
+    vehicle_type: 'moto' | 'carro' | 'bicicleta'
+  } | null
 }
+
+const VEHICLE_ICON = { moto: Zap, carro: Car, bicicleta: Bike }
+const VEHICLE_LABEL = { moto: 'Moto', carro: 'Carro', bicicleta: 'Bicicleta' }
 
 const STATUS_STEPS = [
   { key: 'received',   label: 'Pedido recibido',     icon: '📥' },
@@ -156,6 +164,36 @@ export default function OrderTracker({ initialOrder }: Props) {
             )}
           </div>
         </div>
+
+        {/* Tarjeta del repartidor */}
+        {order.drivers && ['on_the_way', 'delivered'].includes(order.status) && (() => {
+          const d = order.drivers!
+          const DriverIcon = VEHICLE_ICON[d.vehicle_type]
+          const wa = d.whatsapp.replace(/\D/g, '')
+          return (
+            <div className="bg-white rounded-2xl border p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+                  <DriverIcon size={18} className="text-slate-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Tu repartidor</p>
+                  <p className="font-semibold text-sm">{d.name}</p>
+                  <p className="text-xs text-muted-foreground">{VEHICLE_LABEL[d.vehicle_type]}</p>
+                </div>
+              </div>
+              <a
+                href={`https://wa.me/${wa}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+              >
+                <MessageCircle size={14} />
+                WhatsApp
+              </a>
+            </div>
+          )
+        })()}
 
         {/* Estimated time */}
         {order.estimated_time_min && order.status !== 'delivered' && (

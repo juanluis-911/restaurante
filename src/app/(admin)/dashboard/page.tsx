@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import DashboardStats from '@/components/admin/DashboardStats'
 import ActiveOrdersList from '@/components/admin/ActiveOrdersList'
+import { getActiveRestaurant } from '@/lib/utils/get-active-restaurant'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -9,12 +10,7 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: restaurant } = await supabase
-    .from('restaurants')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single()
-
+  const { restaurant } = await getActiveRestaurant(user.id, supabase)
   if (!restaurant) redirect('/auth/onboarding')
 
   // Estadísticas del día

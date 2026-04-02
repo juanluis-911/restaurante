@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import MenuDetail from '@/components/admin/MenuDetail'
+import { getActiveRestaurant } from '@/lib/utils/get-active-restaurant'
 
 interface Props {
   params: Promise<{ menuId: string }>
@@ -13,12 +14,7 @@ export default async function MenuDetailPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: restaurant } = await supabase
-    .from('restaurants')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single()
-
+  const { restaurant } = await getActiveRestaurant(user.id, supabase)
   if (!restaurant) redirect('/auth/onboarding')
 
   const { data: menu } = await supabase

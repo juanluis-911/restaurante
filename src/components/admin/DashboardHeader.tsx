@@ -13,13 +13,16 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { LogOut, User } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
+import RestaurantSwitcher from '@/components/admin/RestaurantSwitcher'
+import type { RestaurantRow } from '@/lib/utils/get-active-restaurant'
 
 interface Props {
-  restaurant: { name: string; primary_color: string }
+  restaurant: RestaurantRow
+  restaurants: RestaurantRow[]
   user: SupabaseUser
 }
 
-export default function DashboardHeader({ restaurant, user }: Props) {
+export default function DashboardHeader({ restaurant, restaurants, user }: Props) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -32,8 +35,10 @@ export default function DashboardHeader({ restaurant, user }: Props) {
 
   return (
     <header className="flex h-14 items-center justify-between border-b px-6">
-      {/* Nombre en mobile */}
-      <div className="md:hidden font-semibold text-sm">{restaurant.name}</div>
+      {/* Selector de restaurante en mobile */}
+      <div className="md:hidden">
+        <RestaurantSwitcher restaurants={restaurants} activeRestaurantId={restaurant.id} compact />
+      </div>
       <div className="hidden md:block" />
 
       {/* Acciones del usuario */}

@@ -53,7 +53,7 @@ export default function KitchenBoard({ initialTickets, restaurantId }: Props) {
       .eq('restaurant_id', restaurantId)
       .in('status', ['queued', 'cooking'])
       .order('created_at', { ascending: true })
-    if (data) setTickets(data as Ticket[])
+    if (data) setTickets(data as unknown as Ticket[])
   }, [supabase, restaurantId])
 
   useEffect(() => {
@@ -77,6 +77,7 @@ export default function KitchenBoard({ initialTickets, restaurantId }: Props) {
 
   async function markDone(ticket: Ticket) {
     await supabase.from('kitchen_tickets').update({ status: 'done' }).eq('id', ticket.id)
+    // El trigger sync_order_from_kitchen actualiza order.status a 'ready' automáticamente
     toast.success('¡Comanda lista! ✓')
   }
 
@@ -90,7 +91,7 @@ export default function KitchenBoard({ initialTickets, restaurantId }: Props) {
       .eq('id', ticket.id)
 
     setTickets((prev) =>
-      prev.map((t) => t.id === ticket.id ? { ...t, items: updatedItems } : t)
+      prev.map((t) => t.id === ticket.id ? { ...t, items: updatedItems as KitchenItem[] } : t)
     )
   }
 
