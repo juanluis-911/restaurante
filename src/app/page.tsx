@@ -2,13 +2,114 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { isRestaurantOpen, formatCurrency } from '@/lib/utils/helpers'
-import { MapPin, Truck, Clock, ChevronDown, UtensilsCrossed } from 'lucide-react'
+import { MapPin, Truck, Clock, ChevronDown, UtensilsCrossed, LogIn, User } from 'lucide-react'
+import { redirect } from 'next/navigation'
 
 export const revalidate = 60 // revalidar cada minuto (open/closed cambia)
 
 export default async function LandingPage() {
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Redirigir dueños y repartidores a sus paneles
+  if (user) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.role === 'restaurant_owner') {
+      const { data: restaurants } = await supabase
+        .from('restaurants').select('id').eq('owner_id', user.id).limit(1)
+      redirect(restaurants?.length ? '/dashboard' : '/auth/onboarding')
+    }
+    if (profile?.role === 'driver') {
+      redirect('/driver')
+    }
+  }
+
+  // Si no hay sesión, mostrar pantalla de bienvenida sin restaurantes
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        {/* ── Header ─────────────────────────────────────────── */}
+        <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Image
+                src="/turieats.png"
+                alt="TuriEats"
+                width={120}
+                height={36}
+                className="h-8 w-auto object-contain"
+                priority
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/cliente/login"
+                className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors"
+              >
+                Inicia sesión
+              </Link>
+              <Link
+                href="/auth/login"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                ¿Eres un restaurante?
+              </Link>
+            </div>
+          </div>
+        </header>
+
+        {/* ── Hero ───────────────────────────────────────────── */}
+        <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-20 px-4 sm:px-6 flex-1 flex items-center">
+          <div className="max-w-3xl mx-auto text-center space-y-6">
+            <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 text-sm font-medium text-white/80">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              Pedidos en línea disponibles
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl font-bold leading-tight tracking-tight">
+              Pide en línea,{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400">
+                listo en minutos.
+              </span>
+            </h1>
+
+            <p className="text-lg text-slate-400 max-w-xl mx-auto">
+              Elige tu restaurante favorito y haz tu pedido sin llamadas, sin esperas.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                href="/cliente/login"
+                className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-full transition-colors text-sm"
+              >
+                <LogIn size={16} />
+                Inicia sesión para pedir
+              </Link>
+              <Link
+                href="/cliente/login?modo=registro"
+                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-medium px-6 py-3 rounded-full transition-colors text-sm"
+              >
+                Crear cuenta gratis
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Footer ─────────────────────────────────────────── */}
+        <footer className="border-t py-6 px-4 text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} TuriEats · Todos los derechos reservados
+        </footer>
+      </div>
+    )
+  }
+
+  // Usuario autenticado como cliente — mostrar restaurantes
   const { data: restaurants } = await supabase
     .from('restaurants')
     .select('*, restaurant_hours(*)')
@@ -30,12 +131,21 @@ export default async function LandingPage() {
               priority
             />
           </div>
-          <Link
-            href="/auth/login"
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Iniciar sesión
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/cliente"
+              className="flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors"
+            >
+              <User size={15} />
+              Mi cuenta
+            </Link>
+            <Link
+              href="/auth/login"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ¿Eres un restaurante?
+            </Link>
+          </div>
         </div>
       </header>
 

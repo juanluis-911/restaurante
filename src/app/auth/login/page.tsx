@@ -79,7 +79,7 @@ export default function LoginPage() {
       } else if (profile.role === 'driver') {
         router.replace('/driver')
       } else {
-        router.replace('/')
+        router.replace('/cliente')
       }
     }
     checkSession()
@@ -120,7 +120,7 @@ export default function LoginPage() {
       } else if (profile.role === 'driver') {
         router.push('/driver')
       } else {
-        router.push('/')
+        router.push('/cliente')
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Correo o contraseña incorrectos')
@@ -169,7 +169,7 @@ export default function LoginPage() {
         router.push('/auth/onboarding')
       } else {
         toast.success('¡Cuenta creada!')
-        router.push('/')
+        router.push('/cliente')
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error al crear la cuenta')

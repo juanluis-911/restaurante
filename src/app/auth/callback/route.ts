@@ -40,8 +40,8 @@ export async function GET(request: Request) {
           return NextResponse.redirect(`${origin}/driver`)
         }
 
-        // customer → storefront
-        return NextResponse.redirect(`${origin}/`)
+        // customer → dashboard cliente
+        return NextResponse.redirect(`${origin}/cliente`)
       }
     }
   }
