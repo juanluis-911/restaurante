@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -14,6 +14,14 @@ import { toast } from 'sonner'
 type Mode = 'login' | 'signup'
 
 export default function ClienteLoginPage() {
+  return (
+    <Suspense>
+      <ClienteLoginForm />
+    </Suspense>
+  )
+}
+
+function ClienteLoginForm() {
   const searchParams = useSearchParams()
   const [mode, setMode] = useState<Mode>(
     searchParams.get('modo') === 'registro' ? 'signup' : 'login'
