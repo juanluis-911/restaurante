@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/billing/weekly-close",
+      "schedule": "0 8 * * 1"
+    }
+  ]
+}

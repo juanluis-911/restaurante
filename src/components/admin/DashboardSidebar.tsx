@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Menu,
   MoreHorizontal,
+  Receipt,
 } from 'lucide-react'
 import RestaurantSwitcher from '@/components/admin/RestaurantSwitcher'
 import type { RestaurantRow } from '@/lib/utils/get-active-restaurant'
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/menus',     label: 'Menús',         icon: UtensilsCrossed },
   { href: '/dashboard/discounts', label: 'Descuentos',    icon: Tag },
   { href: '/dashboard/reports',   label: 'Reportes',      icon: BarChart3 },
+  { href: '/dashboard/billing',   label: 'Facturación',   icon: Receipt },
   { href: '/dashboard/settings',  label: 'Configuración', icon: Settings },
 ]
 

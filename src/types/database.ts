@@ -731,9 +731,60 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_periods: {
+        Row: {
+          id: string
+          restaurant_id: string
+          week_start: string
+          week_end: string
+          order_count: number
+          amount_owed: number
+          status: string
+          stripe_invoice_id: string | null
+          stripe_payment_url: string | null
+          paid_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          restaurant_id: string
+          week_start: string
+          week_end: string
+          order_count?: number
+          amount_owed?: number
+          status?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_url?: string | null
+          paid_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          restaurant_id?: string
+          week_start?: string
+          week_end?: string
+          order_count?: number
+          amount_owed?: number
+          status?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_url?: string | null
+          paid_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_periods_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurants: {
         Row: {
           address: string | null
+          billing_status: string
           created_at: string
           delivery_enabled: boolean
           delivery_fee: number
@@ -751,12 +802,16 @@ export type Database = {
           primary_color: string
           secondary_color: string
           slug: string
+          stripe_account_id: string | null
+          stripe_account_status: string
+          stripe_customer_id: string | null
           timezone: string
           updated_at: string
           whatsapp_number: string | null
         }
         Insert: {
           address?: string | null
+          billing_status?: string
           created_at?: string
           delivery_enabled?: boolean
           delivery_fee?: number
@@ -774,12 +829,16 @@ export type Database = {
           primary_color?: string
           secondary_color?: string
           slug: string
+          stripe_account_id?: string | null
+          stripe_account_status?: string
+          stripe_customer_id?: string | null
           timezone?: string
           updated_at?: string
           whatsapp_number?: string | null
         }
         Update: {
           address?: string | null
+          billing_status?: string
           created_at?: string
           delivery_enabled?: boolean
           delivery_fee?: number
@@ -797,6 +856,9 @@ export type Database = {
           primary_color?: string
           secondary_color?: string
           slug?: string
+          stripe_account_id?: string | null
+          stripe_account_status?: string
+          stripe_customer_id?: string | null
           timezone?: string
           updated_at?: string
           whatsapp_number?: string | null

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Bike, Car, Zap, Plus, X, Globe, Users } from 'lucide-react'
+import { Bike, Car, Zap, Plus, X, Globe, Users, CreditCard, CheckCircle2, AlertCircle, ExternalLink, Unlink } from 'lucide-react'
 import type { Database } from '@/types/database'
 
 type Restaurant = Database['public']['Tables']['restaurants']['Row']
@@ -32,11 +32,20 @@ const FONTS = [
 interface Props {
   restaurant: Restaurant
   hours: Hour[]
+  stripeConnected?: boolean
+  stripeError?: boolean
+  stripePending?: boolean
 }
 
-export default function SettingsForm({ restaurant, hours }: Props) {
+export default function SettingsForm({ restaurant, hours, stripeConnected, stripeError, stripePending }: Props) {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (stripeConnected) toast.success('¡Cuenta Stripe conectada exitosamente!')
+    if (stripeError)     toast.error('Error al conectar con Stripe. Intenta de nuevo.')
+    if (stripePending)   toast.info('Onboarding de Stripe incompleto. Vuelve a conectar para terminarlo.')
+  }, [stripeConnected, stripeError, stripePending])
 
   const [info, setInfo] = useState({
     name: restaurant.name,
@@ -490,9 +499,84 @@ export default function SettingsForm({ restaurant, hours }: Props) {
         </CardContent>
       </Card>
 
+      {/* ── Stripe Connect ───────────────────────────────────── */}
+      <StripeConnectCardInline restaurant={restaurant} />
+
       <Button onClick={saveAll} disabled={loading} className="w-full">
         {loading ? 'Guardando...' : 'Guardar configuración'}
       </Button>
     </div>
+  )
+}
+
+// ── Stripe Connect inline (sin importar archivo externo) ──────────────────────
+function StripeConnectCardInline({ restaurant }: { restaurant: Restaurant }) {
+  const [disconnecting, setDisconnecting] = useState(false)
+
+  const isConnected = restaurant.stripe_account_status === 'active' && !!restaurant.stripe_account_id
+
+  async function handleDisconnect() {
+    setDisconnecting(true)
+    try {
+      const res = await fetch('/api/stripe/connect/disconnect', { method: 'POST' })
+      if (!res.ok) throw new Error()
+      toast.success('Cuenta Stripe desconectada')
+      window.location.reload()
+    } catch {
+      toast.error('Error al desconectar la cuenta')
+    } finally {
+      setDisconnecting(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center gap-2 font-medium">
+          <CreditCard size={16} />
+          Pagos con Stripe
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Conecta tu cuenta Stripe para recibir pagos de tus clientes directamente.
+        </p>
+        <div className="flex items-center gap-3">
+          {isConnected ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-600">
+              <CheckCircle2 size={12} /> Conectado
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-600">
+              <AlertCircle size={12} /> No conectado
+            </span>
+          )}
+          {restaurant.stripe_account_id && (
+            <span className="text-xs text-muted-foreground font-mono">{restaurant.stripe_account_id}</span>
+          )}
+        </div>
+        {isConnected ? (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer" className="gap-1.5">
+                <ExternalLink size={13} /> Ver dashboard Stripe
+              </a>
+            </Button>
+            <Button
+              variant="outline" size="sm"
+              className="gap-1.5 text-destructive hover:text-destructive"
+              onClick={handleDisconnect} disabled={disconnecting}
+            >
+              <Unlink size={13} />
+              {disconnecting ? 'Desconectando...' : 'Desconectar'}
+            </Button>
+          </div>
+        ) : (
+          <Button size="sm" asChild className="gap-1.5">
+            <a href="/api/stripe/connect/authorize">
+              <CreditCard size={13} /> Conectar cuenta Stripe
+            </a>
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   )
 }
