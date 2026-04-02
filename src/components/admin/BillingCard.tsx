@@ -39,9 +39,10 @@ export default function BillingCard({ restaurant }: Props) {
   const pendingPeriod = periods.find((p) => ['invoiced', 'overdue'].includes(p.status))
   const isSuspended   = restaurant.billing_status === 'suspended'
 
-  const currentWeekPeriod = periods.find((p) => p.status === 'open')
-  const currentWeekOrders = currentWeekPeriod?.order_count ?? 0
-  const projectedAmount   = Math.max(currentWeekOrders * 5, 100)
+  const currentWeekPeriod  = periods.find((p) => p.status === 'open')
+  const currentWeekOnline  = currentWeekPeriod?.order_count ?? 0
+  const currentWeekPos     = currentWeekPeriod?.pos_order_count ?? 0
+  const projectedAmount    = Math.max(currentWeekOnline * 5 + currentWeekPos * 0.5, 100)
 
   function formatDate(dateStr: string) {
     return new Date(dateStr + 'T12:00:00').toLocaleDateString('es-MX', {
@@ -104,14 +105,14 @@ export default function BillingCard({ restaurant }: Props) {
               <span className="text-sm font-medium">Cuenta activa</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Esta semana: <strong>{currentWeekOrders} pedido(s)</strong> →
-              proyección de <strong>${projectedAmount} MXN</strong>
-              {currentWeekOrders < 20 && (
-                <span className="text-xs ml-1">(mínimo semanal: $100 MXN)</span>
+              Esta semana: <strong>{currentWeekOnline} online</strong> × $5 + <strong>{currentWeekPos} POS</strong> × $0.50 →
+              proyección de <strong>${projectedAmount.toFixed(2)} MXN</strong>
+              {projectedAmount === 100 && (
+                <span className="text-xs ml-1">(mínimo semanal)</span>
               )}
             </p>
             <p className="text-xs text-muted-foreground">
-              La factura se genera cada lunes a las 2am. Se cobra $5 MXN por pedido con un mínimo de $100 MXN/semana.
+              La factura se genera cada lunes. Online: $5 MXN/pedido · POS: $0.50 MXN/pedido · Mínimo: $100 MXN/semana.
             </p>
           </div>
         )}
@@ -140,7 +141,7 @@ export default function BillingCard({ restaurant }: Props) {
                         {formatDate(p.week_start)} – {formatDate(p.week_end)}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {p.order_count} pedido(s)
+                        {p.order_count} online · {p.pos_order_count ?? 0} POS
                       </span>
                     </div>
                     <div className="flex items-center gap-2">

@@ -741,6 +741,7 @@ export type Database = {
           week_start: string
           week_end: string
           order_count: number
+          pos_order_count: number
           amount_owed: number
           status: string
           stripe_invoice_id: string | null
@@ -754,6 +755,7 @@ export type Database = {
           week_start: string
           week_end: string
           order_count?: number
+          pos_order_count?: number
           amount_owed?: number
           status?: string
           stripe_invoice_id?: string | null
@@ -767,6 +769,7 @@ export type Database = {
           week_start?: string
           week_end?: string
           order_count?: number
+          pos_order_count?: number
           amount_owed?: number
           status?: string
           stripe_invoice_id?: string | null

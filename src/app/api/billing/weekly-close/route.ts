@@ -5,8 +5,9 @@ import type { Database } from '@/types/database'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
-const PRICE_PER_ORDER = 5    // MXN
-const WEEKLY_MINIMUM  = 100  // MXN
+const PRICE_ONLINE   = 5    // MXN por pedido del storefront
+const PRICE_POS      = 0.5  // MXN por pedido POS
+const WEEKLY_MINIMUM = 100  // MXN
 
 function adminClient() {
   return createSupabaseAdmin<Database>(
@@ -64,7 +65,8 @@ export async function POST(request: NextRequest) {
 
     if (!restaurant) continue
 
-    const amountOwed = Math.max(period.order_count * PRICE_PER_ORDER, WEEKLY_MINIMUM)
+    const posCount   = (period as { pos_order_count?: number }).pos_order_count ?? 0
+    const amountOwed = Math.max(period.order_count * PRICE_ONLINE + posCount * PRICE_POS, WEEKLY_MINIMUM)
 
     try {
       // Obtener email del owner para crear/recuperar Stripe Customer
@@ -97,7 +99,7 @@ export async function POST(request: NextRequest) {
         collection_method:    'send_invoice',
         days_until_due:       3,
         currency:             'mxn',
-        description:          `TuriEats — Semana ${start} al ${end} (${period.order_count} pedidos)`,
+        description:          `TuriEats — Semana ${start} al ${end} (${period.order_count} online + ${posCount} POS)`,
         metadata:             { restaurant_id: restaurant.id, week_start: start },
         auto_advance:         true,
       })
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
         invoice:     invoice.id,
         amount:      amountOwed * 100, // Stripe usa centavos
         currency:    'mxn',
-        description: `Comisión semanal: ${period.order_count} pedido(s) × $${PRICE_PER_ORDER} MXN (mínimo $${WEEKLY_MINIMUM} MXN)`,
+        description: `Comisión semanal: ${period.order_count} online × $${PRICE_ONLINE} + ${posCount} POS × $${PRICE_POS} (mínimo $${WEEKLY_MINIMUM} MXN)`,
       })
 
       // Finalizar y enviar la factura
