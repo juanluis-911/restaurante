@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import POSTerminal from '@/components/pos/POSTerminal'
 import { getActiveRestaurant } from '@/lib/utils/get-active-restaurant'
+import type { Database } from '@/types/database'
+
+type Product = Database['public']['Tables']['products']['Row']
 
 export default async function POSPage() {
   const supabase = await createClient()
@@ -24,7 +27,7 @@ export default async function POSPage() {
   const categoriesWithProducts = (categories ?? [])
     .map((cat) => ({
       ...cat,
-      products: (cat.products as { is_active: boolean }[]).filter((p) => p.is_active),
+      products: (cat.products as Product[]).filter((p) => p.is_active),
     }))
     .filter((cat) => cat.products.length > 0)
 

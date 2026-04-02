@@ -120,7 +120,7 @@ export default function MenusList({ initialMenus, restaurantId }: Props) {
     <div className="space-y-4">
       <div className="flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
+          <DialogTrigger>
             <Button onClick={openCreate}>
               <Plus size={16} className="mr-2" />
               Nuevo menú
