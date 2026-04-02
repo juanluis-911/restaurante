@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -53,6 +53,43 @@ export default function StorefrontClient({
 
   const cart     = useCart()
   const supabase = createClient()
+
+  // ── Prellenar form con datos del cliente logueado ────────
+  useEffect(() => {
+    async function prefillFromUser() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const name  = user.user_metadata?.full_name ?? ''
+      const email = user.email ?? ''
+
+      // Buscar el pedido de delivery más reciente para rellenar dirección y teléfono
+      const { data: lastOrder } = await supabase
+        .from('orders')
+        .select('customer_phone, delivery_address')
+        .eq('customer_email', email)
+        .eq('order_type', 'delivery')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const addr = lastOrder?.delivery_address as {
+        street?: string; neighborhood?: string; city?: string; references?: string
+      } | null
+
+      setForm((prev) => ({
+        ...prev,
+        customer_name:          name  || prev.customer_name,
+        customer_email:         email || prev.customer_email,
+        customer_phone:         lastOrder?.customer_phone || prev.customer_phone,
+        delivery_street:        addr?.street        || prev.delivery_street,
+        delivery_neighborhood:  addr?.neighborhood  || prev.delivery_neighborhood,
+        delivery_city:          addr?.city          || prev.delivery_city,
+        delivery_references:    addr?.references    || prev.delivery_references,
+      }))
+    }
+    prefillFromUser()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Descuentos automáticos ───────────────────────────────
   function getDiscountedPrice(product: Product): number {
