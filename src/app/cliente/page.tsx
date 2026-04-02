@@ -1,46 +1,34 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils/helpers'
-import { Package, MapPin, LogOut, ChevronRight, Clock } from 'lucide-react'
+import { MapPin, Package, Clock, UtensilsCrossed, TrendingUp, Home, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import ClienteLogoutButton from '@/components/cliente/ClienteLogoutButton'
+import { OrderHistoryCard } from '@/components/cliente/OrderHistoryCard'
+import type { OrderCardData } from '@/components/cliente/OrderHistoryCard'
 
-type OrderItem = { name: string; quantity: number; unit_price: number; subtotal: number; notes?: string }
 type DeliveryAddress = { street?: string; neighborhood?: string; city?: string; references?: string }
 
-type Order = {
-  id: string
-  restaurant_id: string
-  order_type: string
-  status: string
-  items: OrderItem[]
-  subtotal: number
-  discount_amount: number
-  delivery_fee: number
-  total: number
-  coupon_code: string | null
-  notes: string | null
-  created_at: string
-  restaurants: { name: string; slug: string; primary_color: string; logo_url: string | null } | null
-  delivery_address: DeliveryAddress | null
+const STATUS_STEPS = ['received', 'accepted', 'preparing', 'ready', 'on_the_way', 'delivered']
+const STATUS_LABELS: Record<string, string> = {
+  received:   'Recibido',
+  accepted:   'Aceptado',
+  preparing:  'Preparando',
+  ready:      'Listo',
+  on_the_way: 'En camino',
+  delivered:  'Entregado',
+  cancelled:  'Cancelado',
 }
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  received:    { label: 'Recibido',    color: 'bg-blue-50 text-blue-700' },
-  accepted:    { label: 'Aceptado',    color: 'bg-indigo-50 text-indigo-700' },
-  preparing:   { label: 'Preparando',  color: 'bg-yellow-50 text-yellow-700' },
-  ready:       { label: 'Listo',       color: 'bg-orange-50 text-orange-700' },
-  on_the_way:  { label: 'En camino',   color: 'bg-purple-50 text-purple-700' },
-  delivered:   { label: 'Entregado',   color: 'bg-green-50 text-green-700' },
-  cancelled:   { label: 'Cancelado',   color: 'bg-red-50 text-red-700' },
+function formatDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-MX', {
-    day: 'numeric', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
+function getInitials(nameOrEmail: string) {
+  const parts = nameOrEmail.trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return nameOrEmail.slice(0, 2).toUpperCase()
 }
 
 export default async function ClienteDashboardPage() {
@@ -49,7 +37,6 @@ export default async function ClienteDashboardPage() {
 
   if (!user) redirect('/cliente/login')
 
-  // Verificar que sea cliente (no redirigir owners/drivers, solo proteger la ruta)
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('role')
@@ -59,114 +46,179 @@ export default async function ClienteDashboardPage() {
   if (profile?.role === 'restaurant_owner') redirect('/dashboard')
   if (profile?.role === 'driver') redirect('/driver')
 
-  // Obtener pedidos del cliente por email
   const { data: orders } = await supabase
     .from('orders')
     .select('id, restaurant_id, order_type, status, items, subtotal, discount_amount, delivery_fee, total, coupon_code, notes, created_at, delivery_address, restaurants(name, slug, primary_color, logo_url)')
     .eq('customer_email', user.email!)
     .eq('source', 'online')
     .order('created_at', { ascending: false })
-    .limit(50) as { data: Order[] | null }
+    .limit(100) as { data: OrderCardData[] | null }
 
-  // Extraer direcciones únicas de pedidos de delivery
+  const allOrders   = orders ?? []
+  const activeOrders = allOrders.filter((o) => !['delivered', 'cancelled'].includes(o.status))
+  const pastOrders   = allOrders.filter((o) =>  ['delivered', 'cancelled'].includes(o.status))
+
+  // Stats
+  const totalSpent    = allOrders.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + Number(o.total), 0)
+  const totalOrders   = allOrders.filter((o) => o.status !== 'cancelled').length
+  const restaurantSet = new Set(allOrders.filter((o) => o.status !== 'cancelled').map((o) => o.restaurants?.name))
+  const uniqueRests   = restaurantSet.size
+
+  // Favorite restaurant
+  const restCount = new Map<string, number>()
+  allOrders.filter((o) => o.status !== 'cancelled' && o.restaurants?.name).forEach((o) => {
+    const name = o.restaurants!.name
+    restCount.set(name, (restCount.get(name) ?? 0) + 1)
+  })
+  const favoriteRest = [...restCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+
+  // Saved addresses (unique, most recent first)
   const addressMap = new Map<string, DeliveryAddress>()
-  orders?.forEach((o) => {
-    if (o.order_type === 'delivery' && o.delivery_address?.street) {
-      const key = `${o.delivery_address.street}|${o.delivery_address.neighborhood ?? ''}|${o.delivery_address.city ?? ''}`
-      if (!addressMap.has(key)) addressMap.set(key, o.delivery_address)
+  allOrders.forEach((o) => {
+    if (o.order_type === 'delivery' && (o.delivery_address as DeliveryAddress)?.street) {
+      const addr = o.delivery_address as DeliveryAddress
+      const key = `${addr.street}|${addr.neighborhood ?? ''}|${addr.city ?? ''}`
+      if (!addressMap.has(key)) addressMap.set(key, addr)
     }
   })
   const savedAddresses = Array.from(addressMap.values())
 
-  const activeOrders = orders?.filter((o) => !['delivered', 'cancelled'].includes(o.status)) ?? []
-  const pastOrders   = orders?.filter((o) =>  ['delivered', 'cancelled'].includes(o.status)) ?? []
-
-  const displayName = user.user_metadata?.full_name ?? user.email
+  const displayName = user.user_metadata?.full_name ?? user.email ?? ''
+  const initials    = getInitials(displayName)
+  const memberSince = formatDateShort(user.created_at)
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/">
             <Image src="/turieats.png" alt="TuriEats" width={100} height={30} className="h-7 w-auto object-contain" />
           </Link>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground hidden sm:block truncate max-w-[180px]">{displayName}</span>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-slate-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100"
+            >
+              <Home size={14} />
+              Restaurantes
+            </Link>
             <ClienteLogoutButton />
           </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 space-y-8">
-        {/* ── Bienvenida ── */}
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Mi cuenta</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">{user.email}</p>
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6 space-y-6">
+
+        {/* ── Perfil hero ─────────────────────────────────── */}
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white relative overflow-hidden">
+          {/* Decorative circles */}
+          <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-white/5" />
+          <div className="absolute -bottom-10 -left-6 w-40 h-40 rounded-full bg-white/5" />
+
+          <div className="relative flex items-center gap-4">
+            {/* Avatar */}
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white text-xl font-bold shadow-lg">
+              {initials}
+            </div>
+
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold truncate">{displayName}</h1>
+              <p className="text-sm text-slate-400 truncate">{user.email}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Miembro desde {memberSince}</p>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="relative grid grid-cols-3 gap-3 mt-6">
+            <div className="bg-white/10 rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold">{totalOrders}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Pedidos</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold">{formatCurrency(totalSpent)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Gastado</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold">{uniqueRests}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Restaurantes</p>
+            </div>
+          </div>
+
+          {/* Favorite */}
+          {favoriteRest && (
+            <div className="relative mt-3 flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+              <TrendingUp size={14} className="text-orange-400 shrink-0" />
+              <p className="text-xs text-slate-300">
+                Tu favorito: <span className="font-semibold text-white">{favoriteRest}</span>
+                <span className="text-slate-400"> · {restCount.get(favoriteRest)} pedidos</span>
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* ── Pedidos activos ── */}
+        {/* ── Pedidos activos ─────────────────────────────── */}
         {activeOrders.length > 0 && (
           <section>
-            <h2 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
-              <Clock size={16} className="text-orange-500" />
-              Pedidos en curso
-            </h2>
-            <div className="space-y-3">
+            <SectionTitle icon={<Clock size={15} className="text-orange-500" />} title="Pedidos en curso" count={activeOrders.length} />
+            <div className="space-y-3 mt-3">
               {activeOrders.map((order) => (
-                <OrderCard key={order.id} order={order} />
+                <ActiveOrderCard key={order.id} order={order} />
               ))}
             </div>
           </section>
         )}
 
-        {/* ── Direcciones guardadas ── */}
+        {/* ── Direcciones guardadas ────────────────────────── */}
         {savedAddresses.length > 0 && (
           <section>
-            <h2 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
-              <MapPin size={16} className="text-slate-500" />
-              Mis direcciones
-            </h2>
-            <div className="bg-white rounded-xl border divide-y">
+            <SectionTitle icon={<MapPin size={15} className="text-slate-500" />} title="Mis direcciones" count={savedAddresses.length} />
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
               {savedAddresses.map((addr, i) => (
-                <div key={i} className="px-4 py-3">
-                  <p className="text-sm font-medium text-slate-800">{addr.street}</p>
-                  {(addr.neighborhood || addr.city) && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {[addr.neighborhood, addr.city].filter(Boolean).join(', ')}
-                    </p>
-                  )}
-                  {addr.references && (
-                    <p className="text-xs text-muted-foreground italic mt-0.5">Ref: {addr.references}</p>
-                  )}
+                <div key={i} className="bg-white rounded-xl border p-4 flex gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <MapPin size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{addr.street}</p>
+                    {(addr.neighborhood || addr.city) && (
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        {[addr.neighborhood, addr.city].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                    {addr.references && (
+                      <p className="text-xs text-muted-foreground italic mt-0.5 truncate">Ref: {addr.references}</p>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           </section>
         )}
 
-        {/* ── Historial de pedidos ── */}
+        {/* ── Historial de pedidos ─────────────────────────── */}
         <section>
-          <h2 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
-            <Package size={16} className="text-slate-500" />
-            Historial de pedidos
-          </h2>
+          <SectionTitle icon={<Package size={15} className="text-slate-500" />} title="Historial de pedidos" count={pastOrders.length || undefined} />
 
           {!pastOrders.length ? (
-            <div className="bg-white rounded-xl border px-6 py-12 text-center">
-              <Package size={36} className="mx-auto text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground">Aún no tienes pedidos</p>
+            <div className="mt-3 bg-white rounded-2xl border px-6 py-14 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 mb-4">
+                <UtensilsCrossed size={24} className="text-muted-foreground/50" />
+              </div>
+              <p className="font-medium text-slate-700">Aún no tienes pedidos</p>
+              <p className="text-sm text-muted-foreground mt-1">Explora los restaurantes y haz tu primer pedido</p>
               <Link
                 href="/"
-                className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+                className="mt-5 inline-flex items-center gap-1.5 bg-slate-900 text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-slate-800 transition-colors"
               >
-                Ver restaurantes →
+                Ver restaurantes
+                <ChevronRight size={14} />
               </Link>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="mt-3 space-y-3">
               {pastOrders.map((order) => (
-                <OrderCard key={order.id} order={order} />
+                <OrderHistoryCard key={order.id} order={order} />
               ))}
             </div>
           )}
@@ -174,66 +226,98 @@ export default async function ClienteDashboardPage() {
       </main>
 
       {/* ── Footer ── */}
-      <footer className="border-t py-5 px-4 text-center text-xs text-muted-foreground">
+      <footer className="border-t py-5 px-4 text-center text-xs text-muted-foreground mt-4">
         © {new Date().getFullYear()} TuriEats · Todos los derechos reservados
       </footer>
     </div>
   )
 }
 
-function OrderCard({ order }: { order: Order }) {
-  const status = STATUS_LABELS[order.status] ?? { label: order.status, color: 'bg-slate-100 text-slate-600' }
+// ── Sub-components ────────────────────────────────────────────
+
+function SectionTitle({ icon, title, count }: { icon: React.ReactNode; title: string; count?: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      {icon}
+      <h2 className="text-base font-semibold text-slate-800">{title}</h2>
+      {count !== undefined && (
+        <span className="text-xs font-medium bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">{count}</span>
+      )}
+    </div>
+  )
+}
+
+function ActiveOrderCard({ order }: { order: OrderCardData }) {
   const restaurant = order.restaurants
-  const itemCount = (order.items as OrderItem[]).reduce((s, i) => s + i.quantity, 0)
-  const itemNames = (order.items as OrderItem[]).slice(0, 3).map((i) => i.name).join(', ')
-  const isActive = !['delivered', 'cancelled'].includes(order.status)
+  const stepIndex  = STATUS_STEPS.indexOf(order.status)
+  const items      = order.items as Array<{ name: string; quantity: number }>
+  const itemSummary = items.slice(0, 2).map((i) => `${i.quantity}× ${i.name}`).join(', ') + (items.length > 2 ? `… +${items.length - 2}` : '')
 
   return (
-    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-      {/* Color bar */}
-      {restaurant && (
-        <div className="h-1 w-full" style={{ backgroundColor: restaurant.primary_color }} />
-      )}
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-semibold text-sm text-slate-900 truncate">
-                {restaurant?.name ?? 'Restaurante'}
-              </p>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.color}`}>
-                {status.label}
-              </span>
+    <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+      {restaurant && <div className="h-1 w-full" style={{ backgroundColor: restaurant.primary_color }} />}
+      <div className="p-4 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white font-bold text-sm"
+              style={{ backgroundColor: restaurant?.primary_color ?? '#64748b' }}
+            >
+              {restaurant?.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={restaurant.logo_url} alt={restaurant.name} className="h-10 w-10 rounded-xl object-cover" />
+              ) : (
+                <UtensilsCrossed size={16} />
+              )}
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{formatDate(order.created_at)}</p>
-            <p className="text-xs text-slate-600 mt-1.5 truncate">
-              {itemCount} {itemCount === 1 ? 'artículo' : 'artículos'} · {itemNames}{(order.items as OrderItem[]).length > 3 ? '...' : ''}
-            </p>
+            <div>
+              <p className="font-semibold text-sm text-slate-900">{restaurant?.name}</p>
+              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{itemSummary}</p>
+            </div>
           </div>
-          <div className="text-right shrink-0">
-            <p className="font-semibold text-sm text-slate-900">{formatCurrency(order.total)}</p>
-            <p className="text-xs text-muted-foreground capitalize mt-0.5">
-              {order.order_type === 'delivery' ? 'Delivery' : order.order_type === 'pickup' ? 'Para recoger' : 'Mesa'}
-            </p>
+          <span className="text-sm font-bold text-slate-900">{formatCurrency(order.total)}</span>
+        </div>
+
+        {/* Status stepper */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-0">
+            {STATUS_STEPS.map((step, i) => {
+              const done    = i <= stepIndex
+              const current = i === stepIndex
+              return (
+                <div key={step} className="flex-1 flex items-center">
+                  <div className={`h-2.5 w-2.5 rounded-full shrink-0 transition-colors ${
+                    current ? 'ring-2 ring-offset-1 ring-orange-400 bg-orange-400' :
+                    done    ? 'bg-orange-400' : 'bg-slate-200'
+                  }`} />
+                  {i < STATUS_STEPS.length - 1 && (
+                    <div className={`h-0.5 flex-1 transition-colors ${done ? 'bg-orange-400' : 'bg-slate-200'}`} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <div className="flex justify-between">
+            {STATUS_STEPS.map((step) => (
+              <span key={step} className={`text-[10px] text-center flex-1 ${step === order.status ? 'font-semibold text-orange-600' : 'text-muted-foreground'}`}>
+                {STATUS_LABELS[step]}
+              </span>
+            ))}
           </div>
         </div>
 
-        {/* Dirección de entrega */}
-        {order.order_type === 'delivery' && order.delivery_address?.street && (
-          <div className="flex items-start gap-1.5 mt-2.5 text-xs text-muted-foreground">
-            <MapPin size={11} className="shrink-0 mt-0.5" />
-            <span>{order.delivery_address.street}{order.delivery_address.neighborhood ? `, ${order.delivery_address.neighborhood}` : ''}</span>
-          </div>
-        )}
-
-        {/* Link a seguimiento si está activo */}
-        {isActive && restaurant && (
+        {/* CTA */}
+        {restaurant && (
           <Link
             href={`/${restaurant.slug}/order/${order.id}`}
-            className="mt-3 flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            className="flex items-center justify-between bg-orange-50 hover:bg-orange-100 border border-orange-100 rounded-xl px-3 py-2.5 transition-colors"
           >
-            Seguir pedido
-            <ChevronRight size={12} />
+            <span className="flex items-center gap-2 text-xs font-medium text-orange-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+              Seguir pedido en tiempo real
+            </span>
+            <ChevronRight size={14} className="text-orange-500" />
           </Link>
         )}
       </div>
