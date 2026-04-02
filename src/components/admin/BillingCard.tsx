@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { AlertTriangle, CheckCircle2, Receipt, ExternalLink, Loader2 } from 'lucide-react'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils/cn'
 import type { Database } from '@/types/database'
 
 type BillingPeriod = Database['public']['Tables']['billing_periods']['Row']
@@ -82,16 +84,15 @@ export default function BillingCard({ restaurant }: Props) {
                 </p>
               </div>
             </div>
-            <Button size="sm" asChild className="w-full gap-1.5">
-              <a
-                href={pendingPeriod.stripe_payment_url ?? '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink size={14} />
-                Pagar ${Number(pendingPeriod.amount_owed).toFixed(2)} MXN ahora
-              </a>
-            </Button>
+            <a
+              href={pendingPeriod.stripe_payment_url ?? '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ size: 'sm' }), 'w-full gap-1.5')}
+            >
+              <ExternalLink size={14} />
+              Pagar ${Number(pendingPeriod.amount_owed).toFixed(2)} MXN ahora
+            </a>
           </div>
         )}
 

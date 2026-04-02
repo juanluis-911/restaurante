@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { toast } from 'sonner'
 import { useCart } from '@/lib/hooks/useCart'
 import { formatCurrency } from '@/lib/utils/helpers'
-import { ShoppingCart, Clock, Phone, Plus, Minus, X, Ticket, ArrowLeft, CreditCard, Lock, CheckCircle2 } from 'lucide-react'
+import { ShoppingCart, Clock, Phone, Plus, Minus, X, Ticket, ArrowLeft, CreditCard, Banknote } from 'lucide-react'
 import Link from 'next/link'
 import type { Database } from '@/types/database'
 
@@ -37,10 +37,9 @@ export default function StorefrontClient({
   const [activeMenuId, setActiveMenuId] = useState(menus[0]?.id ?? null)
   const [cartOpen,     setCartOpen]     = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
-  const [paymentOpen,  setPaymentOpen]  = useState(false)
-  const [paymentStep,  setPaymentStep]  = useState<'form' | 'processing' | 'success'>('form')
   const [loading,      setLoading]      = useState(false)
-  const [cardForm,     setCardForm]     = useState({ number: '', expiry: '', cvc: '', name: '' })
+
+  const hasStripe = restaurant.stripe_account_status === 'active' && !!restaurant.stripe_account_id
 
   const [form, setForm] = useState({
     customer_name: '', customer_phone: '', customer_email: '',
@@ -154,107 +153,65 @@ export default function StorefrontClient({
     setForm((p) => ({ ...p, coupon_code: '' }))
   }
 
-  // ── Abrir pago ───────────────────────────────────────────
-  function openPayment() {
-    if (!form.customer_name.trim()) { toast.error('Ingresa tu nombre'); return }
-    if (cart.isEmpty) { toast.error('El carrito está vacío'); return }
+  function validateCheckoutForm() {
+    if (!form.customer_name.trim()) { toast.error('Ingresa tu nombre'); return false }
+    if (cart.isEmpty) { toast.error('El carrito está vacío'); return false }
     if (form.order_type === 'delivery') {
-      if (!form.delivery_street.trim()) { toast.error('Ingresa tu calle y número'); return }
-      if (!form.delivery_city.trim()) { toast.error('Ingresa tu ciudad'); return }
+      if (!form.delivery_street.trim()) { toast.error('Ingresa tu calle y número'); return false }
+      if (!form.delivery_city.trim()) { toast.error('Ingresa tu ciudad'); return false }
     }
-    setCheckoutOpen(false)
-    setCardForm({ number: '', expiry: '', cvc: '', name: '' })
-    setPaymentStep('form')
-    setPaymentOpen(true)
+    return true
   }
 
-  // ── Pago simulado → crear orden ──────────────────────────
-  async function handlePayment() {
-    const num = cardForm.number.replace(/\s/g, '')
-    if (num.length < 16) { toast.error('Número de tarjeta inválido'); return }
-    if (cardForm.expiry.length < 5) { toast.error('Fecha de vencimiento inválida'); return }
-    if (cardForm.cvc.length < 3) { toast.error('CVC inválido'); return }
-    if (!cardForm.name.trim()) { toast.error('Ingresa el nombre del titular'); return }
-
-    setPaymentStep('processing')
-    await new Promise((r) => setTimeout(r, 2200))
-
+  // ── Pago con Stripe → redirige a Stripe Checkout ─────────
+  async function handleStripePayment() {
+    if (!validateCheckoutForm()) return
+    setLoading(true)
     try {
-      const items = cart.items.map((i) => ({
-        ...(i.type === 'product' ? { product_id: i.id } : { combo_id: i.id }),
-        name: i.name, quantity: i.quantity,
-        unit_price: i.price,
-        subtotal: i.price * i.quantity,
-        discount_amount: (i.original_price - i.price) * i.quantity,
-      }))
-
-      const { data: order, error } = await supabase
-        .from('orders')
-        .insert({
-          restaurant_id:  restaurant.id,
-          source:         'online',
-          order_type:     form.order_type,
-          customer_name:  form.customer_name,
-          customer_phone: form.customer_phone || null,
-          customer_email: form.customer_email || null,
-          notes:          form.notes || null,
-          coupon_code:    couponDiscount ? form.coupon_code.toUpperCase() : null,
+      const res = await fetch('/api/stripe/checkout', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurant_id:   restaurant.id,
+          order_type:      form.order_type,
+          customer_name:   form.customer_name,
+          customer_phone:  form.customer_phone,
+          customer_email:  form.customer_email,
+          notes:           form.notes,
+          coupon_code:     couponDiscount ? form.coupon_code.toUpperCase() : '',
+          coupon_discount: couponAmount,
           delivery_address: form.order_type === 'delivery' ? {
             street:       form.delivery_street.trim(),
             neighborhood: form.delivery_neighborhood.trim() || undefined,
             city:         form.delivery_city.trim(),
             references:   form.delivery_references.trim() || undefined,
           } : null,
-          items,
-          subtotal:       subtotalOriginal,
+          items: cart.items.map((i) => ({
+            id: i.id, type: i.type, name: i.name,
+            quantity: i.quantity,
+            unit_price: i.price,
+            original_price: i.original_price,
+          })),
+          subtotal:        subtotalOriginal,
           discount_amount: totalDiscount,
-          total:          orderTotal,
-          status:         'received',
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      if (couponDiscount) {
-        const { data: c } = await supabase
-          .from('coupons').select('used_count')
-          .eq('code', form.coupon_code.toUpperCase())
-          .eq('restaurant_id', restaurant.id).single()
-        if (c) await supabase.from('coupons')
-          .update({ used_count: c.used_count + 1 })
-          .eq('code', form.coupon_code.toUpperCase())
-          .eq('restaurant_id', restaurant.id)
-      }
-
-      setPaymentStep('success')
+          delivery_fee:    form.order_type === 'delivery' ? Number(restaurant.delivery_fee) : 0,
+          total:           orderTotal,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) throw new Error(data.error ?? 'Error')
       cart.clearCart()
-      await new Promise((r) => setTimeout(r, 1500))
-      window.location.href = `/${restaurant.slug}/order/${order.id}`
-    } catch {
-      setPaymentStep('form')
-      toast.error('Error al procesar el pago')
+      window.location.href = data.url
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al iniciar el pago')
+    } finally {
+      setLoading(false)
     }
   }
 
-  function formatCardNumber(value: string) {
-    return value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
-  }
-
-  function formatExpiry(value: string) {
-    const digits = value.replace(/\D/g, '').slice(0, 4)
-    if (digits.length >= 3) return digits.slice(0, 2) + '/' + digits.slice(2)
-    return digits
-  }
-
-  // ── Checkout ─────────────────────────────────────────────
+  // ── Pagar al recibir → crear orden directo en DB ─────────
   async function placeOrder() {
-    if (!form.customer_name.trim()) { toast.error('Ingresa tu nombre'); return }
-    if (cart.isEmpty) { toast.error('El carrito está vacío'); return }
-    if (form.order_type === 'delivery') {
-      if (!form.delivery_street.trim()) { toast.error('Ingresa tu calle y número'); return }
-      if (!form.delivery_city.trim()) { toast.error('Ingresa tu ciudad'); return }
-    }
+    if (!validateCheckoutForm()) return
     setLoading(true)
     try {
       const items = cart.items.map((i) => ({
@@ -701,128 +658,35 @@ export default function StorefrontClient({
               </div>
             </div>
 
-            <Button className="w-full" style={{ backgroundColor: restaurant.primary_color }}
-              onClick={openPayment} disabled={!form.customer_name.trim()}>
-              Continuar al pago →
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      {/* ── Dialog: Pago simulado (Stripe) ───────────────── */}
-      <Dialog open={paymentOpen} onOpenChange={(o) => { if (paymentStep === 'form') setPaymentOpen(o) }}>
-        <DialogContent className="max-w-md p-0 overflow-hidden">
-
-          {/* Header estilo Stripe */}
-          <div className="px-6 pt-6 pb-4 border-b bg-slate-50">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <Lock size={14} className="text-slate-500" />
-                <span className="text-xs text-slate-500 font-medium">Pago seguro</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-8 h-5 bg-blue-600 rounded text-white text-[9px] font-bold flex items-center justify-center">VISA</div>
-                <div className="w-8 h-5 bg-red-500 rounded text-white text-[9px] font-bold flex items-center justify-center">MC</div>
-                <div className="w-8 h-5 bg-blue-400 rounded text-white text-[9px] font-bold flex items-center justify-center">AMEX</div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between mt-3">
-              <div>
-                <p className="text-sm text-slate-600">{restaurant.name}</p>
-                <p className="text-xl font-bold text-slate-900">{formatCurrency(orderTotal)}</p>
-              </div>
-              <CreditCard size={28} className="text-slate-400" />
-            </div>
-          </div>
-
-          <div className="px-6 py-5">
-            {paymentStep === 'success' ? (
-              <div className="flex flex-col items-center gap-3 py-6 text-center">
-                <CheckCircle2 size={52} className="text-green-500" />
-                <p className="font-bold text-lg text-slate-800">¡Pago aprobado!</p>
-                <p className="text-sm text-slate-500">Redirigiendo a tu pedido…</p>
-              </div>
-            ) : paymentStep === 'processing' ? (
-              <div className="flex flex-col items-center gap-3 py-8 text-center">
-                <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
-                <p className="text-sm text-slate-600 font-medium">Procesando pago…</p>
-                <p className="text-xs text-slate-400">No cierres esta ventana</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-slate-700">Número de tarjeta</label>
-                  <div className="relative">
-                    <Input
-                      placeholder="1234 5678 9012 3456"
-                      value={cardForm.number}
-                      onChange={(e) => setCardForm((p) => ({ ...p, number: formatCardNumber(e.target.value) }))}
-                      className="font-mono pr-10"
-                      maxLength={19}
-                      inputMode="numeric"
-                    />
-                    <CreditCard size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700">Vencimiento</label>
-                    <Input
-                      placeholder="MM/AA"
-                      value={cardForm.expiry}
-                      onChange={(e) => setCardForm((p) => ({ ...p, expiry: formatExpiry(e.target.value) }))}
-                      className="font-mono"
-                      maxLength={5}
-                      inputMode="numeric"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700">CVC</label>
-                    <Input
-                      placeholder="123"
-                      value={cardForm.cvc}
-                      onChange={(e) => setCardForm((p) => ({ ...p, cvc: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                      className="font-mono"
-                      maxLength={4}
-                      inputMode="numeric"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-slate-700">Nombre del titular</label>
-                  <Input
-                    placeholder="Como aparece en la tarjeta"
-                    value={cardForm.name}
-                    onChange={(e) => setCardForm((p) => ({ ...p, name: e.target.value.toUpperCase() }))}
-                    className="uppercase"
-                  />
-                </div>
-
+            {/* Botones de pago */}
+            <div className="space-y-2">
+              {hasStripe && (
                 <Button
-                  className="w-full mt-2 gap-2"
+                  className="w-full gap-2"
                   style={{ backgroundColor: '#635BFF' }}
-                  onClick={handlePayment}
+                  onClick={handleStripePayment}
+                  disabled={loading || !form.customer_name.trim()}
                 >
-                  <Lock size={14} />
-                  Pagar {formatCurrency(orderTotal)}
+                  <CreditCard size={15} />
+                  {loading ? 'Redirigiendo…' : `Pagar con tarjeta ${formatCurrency(orderTotal)}`}
                 </Button>
-
-                <button
-                  className="w-full text-xs text-slate-400 hover:text-slate-600 text-center"
-                  onClick={() => { setPaymentOpen(false); setCheckoutOpen(true) }}
-                >
-                  ← Volver al pedido
-                </button>
-              </div>
+              )}
+              <Button
+                className="w-full gap-2"
+                variant={hasStripe ? 'outline' : 'default'}
+                style={!hasStripe ? { backgroundColor: restaurant.primary_color } : {}}
+                onClick={placeOrder}
+                disabled={loading || !form.customer_name.trim()}
+              >
+                <Banknote size={15} />
+                {loading ? 'Enviando…' : hasStripe ? 'Pagar al recibir' : `Hacer pedido · ${formatCurrency(orderTotal)}`}
+              </Button>
+            </div>
+            {hasStripe && (
+              <p className="text-xs text-muted-foreground text-center">
+                Pago con tarjeta procesado de forma segura por Stripe
+              </p>
             )}
-          </div>
-
-          {/* Footer Stripe */}
-          <div className="px-6 pb-4 flex items-center justify-center gap-1.5">
-            <Lock size={11} className="text-slate-400" />
-            <span className="text-[11px] text-slate-400">Pagos seguros con</span>
-            <span className="text-[11px] font-bold text-slate-500">stripe</span>
           </div>
         </DialogContent>
       </Dialog>

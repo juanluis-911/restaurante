@@ -414,6 +414,7 @@ export type Database = {
           restaurant_id: string
           source: string
           status: string
+          stripe_session_id: string | null
           subtotal: number
           table_number: string | null
           total: number
@@ -441,6 +442,7 @@ export type Database = {
           restaurant_id: string
           source?: string
           status?: string
+          stripe_session_id?: string | null
           subtotal?: number
           table_number?: string | null
           total?: number
@@ -468,6 +470,7 @@ export type Database = {
           restaurant_id?: string
           source?: string
           status?: string
+          stripe_session_id?: string | null
           subtotal?: number
           table_number?: string | null
           total?: number

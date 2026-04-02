@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { CreditCard, CheckCircle2, AlertCircle, ExternalLink, Unlink } from 'lucide-react'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils/cn'
 import type { Database } from '@/types/database'
 
 type Restaurant = Database['public']['Tables']['restaurants']['Row']
@@ -70,21 +72,15 @@ export default function StripeConnectCard({ restaurant }: Props) {
 
         {isConnected ? (
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              asChild
+            <a
+              href="https://dashboard.stripe.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1.5')}
             >
-              <a
-                href="https://dashboard.stripe.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="gap-1.5"
-              >
-                <ExternalLink size={14} />
-                Ver dashboard Stripe
-              </a>
-            </Button>
+              <ExternalLink size={14} />
+              Ver dashboard Stripe
+            </a>
             <Button
               variant="outline"
               size="sm"
@@ -97,12 +93,13 @@ export default function StripeConnectCard({ restaurant }: Props) {
             </Button>
           </div>
         ) : (
-          <Button asChild size="sm" className="gap-1.5">
-            <a href="/api/stripe/connect/authorize">
-              <CreditCard size={14} />
-              Conectar cuenta Stripe
-            </a>
-          </Button>
+          <a
+            href="/api/stripe/connect/authorize"
+            className={cn(buttonVariants({ size: 'sm' }), 'gap-1.5')}
+          >
+            <CreditCard size={14} />
+            Conectar cuenta Stripe
+          </a>
         )}
       </CardContent>
     </Card>

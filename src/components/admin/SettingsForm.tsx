@@ -555,11 +555,14 @@ function StripeConnectCardInline({ restaurant }: { restaurant: Restaurant }) {
         </div>
         {isConnected ? (
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer" className="gap-1.5">
-                <ExternalLink size={13} /> Ver dashboard Stripe
-              </a>
-            </Button>
+            <a
+              href="https://dashboard.stripe.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium h-7 hover:bg-muted transition-colors"
+            >
+              <ExternalLink size={13} /> Ver dashboard Stripe
+            </a>
             <Button
               variant="outline" size="sm"
               className="gap-1.5 text-destructive hover:text-destructive"
@@ -570,11 +573,12 @@ function StripeConnectCardInline({ restaurant }: { restaurant: Restaurant }) {
             </Button>
           </div>
         ) : (
-          <Button size="sm" asChild className="gap-1.5">
-            <a href="/api/stripe/connect/authorize">
-              <CreditCard size={13} /> Conectar cuenta Stripe
-            </a>
-          </Button>
+          <a
+            href="/api/stripe/connect/authorize"
+            className="inline-flex items-center gap-1.5 rounded-[min(var(--radius-md),12px)] bg-primary text-primary-foreground px-2.5 text-[0.8rem] font-medium h-7 hover:bg-primary/90 transition-colors"
+          >
+            <CreditCard size={13} /> Conectar cuenta Stripe
+          </a>
         )}
       </CardContent>
     </Card>
