@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 import DashboardSidebar from '@/components/admin/DashboardSidebar'
 import DashboardHeader from '@/components/admin/DashboardHeader'
 import { Toaster } from 'sonner'
@@ -23,15 +22,10 @@ export default async function DashboardLayout({
 
   if (!restaurant) redirect('/auth/onboarding')
 
-  // Sincronizar billing_status en cookie para que el proxy lo lea sin hacer query
-  const cookieStore = await cookies()
-  const billingStatus = restaurant.billing_status ?? 'active'
-  cookieStore.set('billing_status', billingStatus, {
-    path:     '/',
-    httpOnly: false, // El proxy lo lee desde request.cookies
-    sameSite: 'lax',
-    maxAge:   60 * 60, // 1 hora; se refresca en cada carga del layout
-  })
+  // Si el restaurante está suspendido, redirigir a billing (excepto si ya está ahí)
+  if (restaurant.billing_status === 'suspended') {
+    redirect('/dashboard/billing')
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
