@@ -64,16 +64,23 @@ export default function RolePage() {
         .maybeSingle()
 
       if (profile) {
-        redirectByRole(profile.role as Role)
+        await redirectByRole(profile.role as Role, user.id)
       }
     }
     check()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function redirectByRole(r: Role) {
-    if (r === 'restaurant_owner') router.replace('/auth/onboarding')
-    else if (r === 'driver') router.replace('/driver')
-    else router.replace('/')
+  async function redirectByRole(r: Role, userId?: string) {
+    if (r === 'restaurant_owner') {
+      const uid = userId ?? (await supabase.auth.getUser()).data.user?.id
+      const { data: restaurants } = await supabase
+        .from('restaurants').select('id').eq('owner_id', uid).limit(1)
+      router.replace(restaurants?.length ? '/dashboard' : '/auth/onboarding')
+    } else if (r === 'driver') {
+      router.replace('/driver')
+    } else {
+      router.replace('/')
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -109,7 +116,7 @@ export default function RolePage() {
       }
 
       toast.success('¡Bienvenido!')
-      redirectByRole(role)
+      await redirectByRole(role)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error al guardar tu perfil')
     } finally {
