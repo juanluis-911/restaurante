@@ -29,9 +29,10 @@ export default function DriverLoginPage() {
   const [vehicle,  setVehicle]  = useState<'moto' | 'carro' | 'bicicleta'>('moto')
 
   async function handleGoogleAuth() {
+    const origin = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback` },
+      options: { redirectTo: `${origin}/auth/callback` },
     })
   }
 
