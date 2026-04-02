@@ -170,31 +170,43 @@ export default async function ClienteDashboardPage() {
         )}
 
         {/* ── Direcciones guardadas ────────────────────────── */}
-        {savedAddresses.length > 0 && (
-          <section>
-            <SectionTitle icon={<MapPin size={15} className="text-slate-500" />} title="Mis direcciones" count={savedAddresses.length} />
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {savedAddresses.map((addr, i) => (
-                <div key={i} className="bg-white rounded-xl border p-4 flex gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                    <MapPin size={16} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{addr.street}</p>
-                    {(addr.neighborhood || addr.city) && (
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        {[addr.neighborhood, addr.city].filter(Boolean).join(', ')}
-                      </p>
-                    )}
-                    {addr.references && (
-                      <p className="text-xs text-muted-foreground italic mt-0.5 truncate">Ref: {addr.references}</p>
-                    )}
-                  </div>
+        <section>
+          <SectionTitle icon={<MapPin size={15} className="text-slate-500" />} title="Mis direcciones" count={savedAddresses.length || undefined} />
+          <div className="mt-3">
+            {savedAddresses.length === 0 ? (
+              <div className="bg-white rounded-2xl border px-6 py-8 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 mb-3">
+                  <MapPin size={20} className="text-muted-foreground/50" />
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+                <p className="text-sm font-medium text-slate-700">Sin direcciones guardadas</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tus direcciones de entrega se guardarán aquí automáticamente después de tu primer pedido a domicilio.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {savedAddresses.map((addr, i) => (
+                  <div key={i} className="bg-white rounded-xl border p-4 flex gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                      <MapPin size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{addr.street}</p>
+                      {(addr.neighborhood || addr.city) && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {[addr.neighborhood, addr.city].filter(Boolean).join(', ')}
+                        </p>
+                      )}
+                      {addr.references && (
+                        <p className="text-xs text-muted-foreground italic mt-0.5 truncate">Ref: {addr.references}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* ── Historial de pedidos ─────────────────────────── */}
         <section>
