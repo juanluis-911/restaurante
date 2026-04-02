@@ -17,6 +17,7 @@ import {
   Menu,
   MoreHorizontal,
   Receipt,
+  HelpCircle,
 } from 'lucide-react'
 import RestaurantSwitcher from '@/components/admin/RestaurantSwitcher'
 import type { RestaurantRow } from '@/lib/utils/get-active-restaurant'
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/reports',   label: 'Reportes',      icon: BarChart3 },
   { href: '/dashboard/billing',   label: 'Facturación',   icon: Receipt },
   { href: '/dashboard/settings',  label: 'Configuración', icon: Settings },
+  { href: '/dashboard/ayuda',     label: 'Ayuda',         icon: HelpCircle },
 ]
 
 // Primeros 4 en la barra inferior, el resto en "Más"
