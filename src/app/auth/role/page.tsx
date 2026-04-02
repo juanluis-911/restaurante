@@ -72,7 +72,7 @@ export default function RolePage() {
 
   async function redirectByRole(r: Role, userId?: string) {
     if (r === 'restaurant_owner') {
-      const uid = userId ?? (await supabase.auth.getUser()).data.user?.id
+      const uid = userId ?? (await supabase.auth.getUser()).data.user?.id ?? ''
       const { data: restaurants } = await supabase
         .from('restaurants').select('id').eq('owner_id', uid).limit(1)
       router.replace(restaurants?.length ? '/dashboard' : '/auth/onboarding')
