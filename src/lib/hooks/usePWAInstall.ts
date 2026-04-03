@@ -15,8 +15,8 @@ declare global {
 
 export function usePWAInstall() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [isInstalled, setIsInstalled] = useState(false)
-  const [isIOS, setIsIOS] = useState(false)
+  const [isInstalled, setIsInstalled]     = useState(false)
+  const [isIOS, setIsIOS]                 = useState(false)
 
   useEffect(() => {
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
@@ -24,21 +24,32 @@ export function usePWAInstall() {
 
     const standalone =
       window.matchMedia('(display-mode: standalone)').matches ||
-      ('standalone' in window.navigator && (window.navigator as { standalone?: boolean }).standalone === true)
+      ('standalone' in window.navigator &&
+        (window.navigator as { standalone?: boolean }).standalone === true)
     setIsInstalled(standalone)
 
-    // Leer el evento capturado antes de la hidratación de React
+    // Leer prompt capturado antes de hidratación
     if (window.__pwaInstallPrompt) {
       setInstallPrompt(window.__pwaInstallPrompt)
     }
 
-    // También escuchar si llega después (por si acaso)
-    const handler = (e: Event) => {
+    // Escuchar el evento custom que emitimos desde el inline script
+    const onReady = () => {
+      if (window.__pwaInstallPrompt) setInstallPrompt(window.__pwaInstallPrompt)
+    }
+    window.addEventListener('pwaInstallReady', onReady)
+
+    // También escuchar el evento nativo por si llega después
+    const onNative = (e: Event) => {
       e.preventDefault()
       setInstallPrompt(e as BeforeInstallPromptEvent)
     }
-    window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    window.addEventListener('beforeinstallprompt', onNative)
+
+    return () => {
+      window.removeEventListener('pwaInstallReady', onReady)
+      window.removeEventListener('beforeinstallprompt', onNative)
+    }
   }, [])
 
   async function install(): Promise<boolean> {
@@ -53,10 +64,5 @@ export function usePWAInstall() {
     return outcome === 'accepted'
   }
 
-  return {
-    canInstall: !!installPrompt,
-    isInstalled,
-    isIOS,
-    install,
-  }
+  return { canInstall: !!installPrompt, isInstalled, isIOS, install }
 }
