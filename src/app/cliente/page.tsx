@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import ClienteLogoutButton from '@/components/cliente/ClienteLogoutButton'
 import { OrderHistoryCard } from '@/components/cliente/OrderHistoryCard'
+import InstallBanner from '@/components/shared/InstallBanner'
 import type { OrderCardData } from '@/components/cliente/OrderHistoryCard'
 
 type DeliveryAddress = { street?: string; neighborhood?: string; city?: string; references?: string }
@@ -89,6 +90,9 @@ export default async function ClienteDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* ── Install Banner ─────────────────────────────────── */}
+      <InstallBanner />
+
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">

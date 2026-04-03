@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { Bike, Car, Zap, Plus, X, Globe, Users, CreditCard, CheckCircle2, AlertCircle, ExternalLink, Unlink, Upload, ImageIcon } from 'lucide-react'
+import QRShareCard from '@/components/admin/QRShareCard'
 import type { Database } from '@/types/database'
 
 type Restaurant = Database['public']['Tables']['restaurants']['Row']
@@ -614,6 +615,9 @@ export default function SettingsForm({ restaurant, hours, stripeConnected, strip
 
       {/* ── Stripe Connect ───────────────────────────────────── */}
       <StripeConnectCardInline restaurant={restaurant} />
+
+      {/* ── QR Codes ─────────────────────────────────────────── */}
+      <QRShareCard slug={info.slug} />
 
       <Button onClick={saveAll} disabled={loading} className="w-full">
         {loading ? 'Guardando...' : 'Guardar configuración'}

@@ -5,8 +5,9 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "theme_color": "#0f172a",
   "orientation": "portrait",
+  "categories": ["food", "shopping"],
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -19,6 +20,13 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mis pedidos",
+      "url": "/cliente",
+      "description": "Ver mis pedidos activos"
     }
   ]
 }

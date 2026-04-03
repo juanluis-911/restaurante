@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { Toaster } from 'sonner'
 import { MapPin, Package, CheckCircle2, LogOut, Bike, Car, Zap, Clock, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import InstallBanner from '@/components/shared/InstallBanner'
 
 type Driver = {
   id: string
@@ -151,6 +152,9 @@ export default function DriverDashboard({ driver: initialDriver, availableOrders
   return (
     <div className="min-h-screen bg-slate-50">
       <Toaster richColors position="top-center" />
+
+      {/* Install Banner */}
+      <InstallBanner variant="dark" />
 
       {/* Header */}
       <header className="bg-slate-900 text-white px-4 py-4">
