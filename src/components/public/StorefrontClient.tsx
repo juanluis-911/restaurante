@@ -283,6 +283,16 @@ export default function StorefrontClient({
 
       {/* Header */}
       <header className="bg-white border-b sticky top-0 z-10">
+        {/* Banner de portada */}
+        {(restaurant as { header_image_url?: string | null }).header_image_url && (
+          <div className="h-28 w-full overflow-hidden">
+            <img
+              src={(restaurant as { header_image_url?: string | null }).header_image_url!}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+        )}
         <div className="max-w-3xl mx-auto px-4 py-3 flex flex-col gap-2">
           <Link href="/" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-fit">
             <ArrowLeft size={13} />
@@ -291,9 +301,9 @@ export default function StorefrontClient({
           <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {restaurant.logo_url ? (
-              <img src={restaurant.logo_url} alt={restaurant.name} className="h-10 w-10 rounded-full object-cover" />
+              <img src={restaurant.logo_url} alt={restaurant.name} className="h-12 w-12 rounded-xl object-cover shadow-sm" />
             ) : (
-              <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold"
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm"
                 style={{ backgroundColor: restaurant.primary_color }}>
                 {restaurant.name.charAt(0)}
               </div>

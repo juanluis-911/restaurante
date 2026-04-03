@@ -106,8 +106,13 @@ export default function OrderTracker({ initialOrder }: Props) {
         </a>
 
         <div className="relative px-5 pt-8 pb-6">
-          {/* Restaurant name */}
-          <p className="text-sm font-medium opacity-80 mb-4">{restaurant?.name}</p>
+          {/* Restaurant name + logo */}
+          <div className="flex items-center gap-2.5 mb-4">
+            {restaurant?.logo_url ? (
+              <img src={restaurant.logo_url} alt={restaurant.name} className="h-8 w-8 rounded-lg object-cover bg-white/20" />
+            ) : null}
+            <p className="text-sm font-medium opacity-80">{restaurant?.name}</p>
+          </div>
 
           {/* Status hero */}
           <div className="flex items-center gap-4 mb-5">
@@ -166,7 +171,7 @@ export default function OrderTracker({ initialOrder }: Props) {
                           active  ? 'text-white ring-4 ring-offset-1 shadow-md' :
                           'bg-slate-100 text-slate-300'
                         }`}
-                        style={active ? { backgroundColor: primaryColor, ringColor: primaryColor + '40' } : undefined}
+                        style={active ? { backgroundColor: primaryColor } : undefined}
                       >
                         {done ? '✓' : step.icon}
                       </div>

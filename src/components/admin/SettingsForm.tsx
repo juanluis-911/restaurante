@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Bike, Car, Zap, Plus, X, Globe, Users, CreditCard, CheckCircle2, AlertCircle, ExternalLink, Unlink } from 'lucide-react'
+import { Bike, Car, Zap, Plus, X, Globe, Users, CreditCard, CheckCircle2, AlertCircle, ExternalLink, Unlink, Upload, ImageIcon } from 'lucide-react'
 import type { Database } from '@/types/database'
 
 type Restaurant = Database['public']['Tables']['restaurants']['Row']
@@ -60,6 +60,51 @@ export default function SettingsForm({ restaurant, hours, stripeConnected, strip
     secondary_color: restaurant.secondary_color,
     font_choice: restaurant.font_choice,
   })
+
+  const [logoUrl, setLogoUrl]               = useState<string | null>(restaurant.logo_url ?? null)
+  const [headerImageUrl, setHeaderImageUrl] = useState<string | null>((restaurant as { header_image_url?: string | null }).header_image_url ?? null)
+  const [uploadingLogo, setUploadingLogo]   = useState(false)
+  const [uploadingHeader, setUploadingHeader] = useState(false)
+  const logoInputRef   = useRef<HTMLInputElement>(null)
+  const headerInputRef = useRef<HTMLInputElement>(null)
+
+  async function uploadImage(file: File, folder: 'logos' | 'headers'): Promise<string | null> {
+    const ext  = file.name.split('.').pop()
+    const path = `${folder}/${restaurant.id}.${ext}`
+    const { error } = await supabase.storage
+      .from('restaurant-assets')
+      .upload(path, file, { upsert: true })
+    if (error) { toast.error('Error al subir imagen'); return null }
+    const { data } = supabase.storage.from('restaurant-assets').getPublicUrl(path)
+    return data.publicUrl + `?t=${Date.now()}`
+  }
+
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingLogo(true)
+    const url = await uploadImage(file, 'logos')
+    if (url) {
+      setLogoUrl(url)
+      await supabase.from('restaurants').update({ logo_url: url }).eq('id', restaurant.id)
+      toast.success('Logo actualizado')
+    }
+    setUploadingLogo(false)
+  }
+
+  async function handleHeaderChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingHeader(true)
+    const url = await uploadImage(file, 'headers')
+    if (url) {
+      setHeaderImageUrl(url)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from('restaurants').update({ header_image_url: url }).eq('id', restaurant.id)
+      toast.success('Imagen de portada actualizada')
+    }
+    setUploadingHeader(false)
+  }
 
   const [delivery, setDelivery] = useState({
     delivery_enabled: restaurant.delivery_enabled,
@@ -224,6 +269,74 @@ export default function SettingsForm({ restaurant, hours, stripeConnected, strip
             <Label>Dirección</Label>
             <Input value={info.address} onChange={(e) => setInfo((p) => ({ ...p, address: e.target.value }))} />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Imágenes */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Imágenes</CardTitle></CardHeader>
+        <CardContent className="space-y-6">
+
+          {/* Logo */}
+          <div className="space-y-3">
+            <Label>Logotipo</Label>
+            <div className="flex items-center gap-4">
+              <div
+                className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl overflow-hidden border-2 border-dashed border-muted-foreground/25 bg-muted/30 cursor-pointer hover:border-muted-foreground/50 transition-colors"
+                onClick={() => logoInputRef.current?.click()}
+              >
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Logo" className="h-full w-full object-cover" />
+                ) : (
+                  <ImageIcon size={24} className="text-muted-foreground/40" />
+                )}
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Aparece en el menú, historial de pedidos y seguimiento. Recomendado: cuadrado, mínimo 200×200px.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={uploadingLogo}
+                  className="gap-1.5"
+                >
+                  <Upload size={13} />
+                  {uploadingLogo ? 'Subiendo...' : logoUrl ? 'Cambiar logo' : 'Subir logo'}
+                </Button>
+              </div>
+            </div>
+            <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+          </div>
+
+          {/* Header image */}
+          <div className="space-y-3">
+            <Label>Imagen de portada</Label>
+            <div
+              className="relative h-32 w-full rounded-xl overflow-hidden border-2 border-dashed border-muted-foreground/25 bg-muted/30 cursor-pointer hover:border-muted-foreground/50 transition-colors flex items-center justify-center"
+              onClick={() => headerInputRef.current?.click()}
+            >
+              {headerImageUrl ? (
+                <>
+                  <img src={headerImageUrl} alt="Portada" className="absolute inset-0 h-full w-full object-cover" />
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <span className="text-white text-sm font-medium flex items-center gap-1.5"><Upload size={14} /> Cambiar imagen</span>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center space-y-1">
+                  <ImageIcon size={28} className="mx-auto text-muted-foreground/40" />
+                  <p className="text-xs text-muted-foreground">Toca para subir imagen de portada</p>
+                  <p className="text-xs text-muted-foreground/60">Recomendado: 1200×400px</p>
+                </div>
+              )}
+            </div>
+            {uploadingHeader && <p className="text-xs text-muted-foreground">Subiendo imagen...</p>}
+            <input ref={headerInputRef} type="file" accept="image/*" className="hidden" onChange={handleHeaderChange} />
+          </div>
+
         </CardContent>
       </Card>
 

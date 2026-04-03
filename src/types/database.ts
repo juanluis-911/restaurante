@@ -798,6 +798,7 @@ export type Database = {
           delivery_radius_km: number | null
           driver_mode: string
           font_choice: string
+          header_image_url: string | null
           id: string
           is_active: boolean
           logo_url: string | null
@@ -825,6 +826,7 @@ export type Database = {
           delivery_radius_km?: number | null
           driver_mode?: string
           font_choice?: string
+          header_image_url?: string | null
           id?: string
           is_active?: boolean
           logo_url?: string | null
@@ -852,6 +854,7 @@ export type Database = {
           delivery_radius_km?: number | null
           driver_mode?: string
           font_choice?: string
+          header_image_url?: string | null
           id?: string
           is_active?: boolean
           logo_url?: string | null
