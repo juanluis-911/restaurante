@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/helpers'
-import { CheckCircle2, Circle, Clock, MessageCircle, Bike, Car, Zap } from 'lucide-react'
+import { Clock, MessageCircle, Bike, Car, Zap, User, ChevronRight, MapPin, Receipt } from 'lucide-react'
 import type { Database } from '@/types/database'
 
 type Order = Database['public']['Tables']['orders']['Row'] & {
@@ -24,12 +24,12 @@ const VEHICLE_ICON = { moto: Zap, carro: Car, bicicleta: Bike }
 const VEHICLE_LABEL = { moto: 'Moto', carro: 'Carro', bicicleta: 'Bicicleta' }
 
 const STATUS_STEPS = [
-  { key: 'received',   label: 'Pedido recibido',     icon: '📥' },
-  { key: 'accepted',   label: 'Pedido aceptado',      icon: '✅' },
-  { key: 'preparing',  label: 'En preparación',       icon: '👨‍🍳' },
-  { key: 'ready',      label: 'Listo para entregar',  icon: '🎉' },
-  { key: 'on_the_way', label: 'En camino',            icon: '🛵' },
-  { key: 'delivered',  label: 'Entregado',            icon: '🏠' },
+  { key: 'received',   label: 'Recibido',        desc: 'El restaurante recibió tu pedido',     icon: '📥' },
+  { key: 'accepted',   label: 'Aceptado',         desc: 'Confirmaron tu pedido',                icon: '✅' },
+  { key: 'preparing',  label: 'En preparación',   desc: 'Están cocinando tu pedido',            icon: '👨‍🍳' },
+  { key: 'ready',      label: 'Listo',            desc: 'Tu pedido está listo para entregar',   icon: '🎉' },
+  { key: 'on_the_way', label: 'En camino',        desc: 'Tu pedido está en camino',             icon: '🛵' },
+  { key: 'delivered',  label: 'Entregado',        desc: '¡Tu pedido llegó! Buen provecho 🍽️',  icon: '🏠' },
 ]
 
 const STATUS_INDEX: Record<string, number> = Object.fromEntries(
@@ -61,176 +61,248 @@ export default function OrderTracker({ initialOrder }: Props) {
     return () => { supabase.removeChannel(channel) }
   }, [order.id, supabase])
 
-  const currentIdx = order.status === 'cancelled' ? -1 : (STATUS_INDEX[order.status] ?? 0)
-  const items = order.items as { name: string; quantity: number }[]
-  const primaryColor = restaurant?.primary_color ?? '#E53E3E'
+  const currentIdx    = order.status === 'cancelled' ? -1 : (STATUS_INDEX[order.status] ?? 0)
+  const currentStep   = STATUS_STEPS[currentIdx]
+  const items         = order.items as { name: string; quantity: number; unit_price?: number; subtotal?: number }[]
+  const primaryColor  = restaurant?.primary_color ?? '#E53E3E'
+  const isDelivered   = order.status === 'delivered'
 
   if (order.status === 'cancelled') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl border p-8 text-center max-w-sm w-full">
-          <p className="text-5xl mb-4">😔</p>
-          <h1 className="text-xl font-bold mb-2">Pedido cancelado</h1>
-          <p className="text-muted-foreground text-sm">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-sm border p-8 text-center max-w-sm w-full space-y-3">
+          <div className="text-6xl">😔</div>
+          <h1 className="text-xl font-bold text-slate-800">Pedido cancelado</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
             Tu pedido #{order.id.slice(-6).toUpperCase()} fue cancelado.
-            {restaurant?.phone && ` Llama al ${restaurant.phone} si tienes dudas.`}
+            {restaurant?.phone && (
+              <> Llama al <span className="font-medium text-slate-700">{restaurant.phone}</span> si tienes dudas.</>
+            )}
           </p>
+          <a href="/cliente" className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+            Ver mis pedidos <ChevronRight size={14} />
+          </a>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="text-white py-6 px-4 text-center relative" style={{ backgroundColor: primaryColor }}>
+    <div className="min-h-screen bg-slate-50">
+
+      {/* ── Header ─────────────────────────────────────────── */}
+      <div className="relative text-white overflow-hidden" style={{ backgroundColor: primaryColor }}>
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/10 pointer-events-none" />
+        <div className="absolute -bottom-8 -left-6 w-36 h-36 rounded-full bg-black/10 pointer-events-none" />
+
+        {/* Account button */}
         <a
           href="/cliente"
-          className="absolute right-4 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors"
           title="Mi cuenta"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <User size={17} />
         </a>
-        <p className="text-sm opacity-80 mb-1">{restaurant?.name}</p>
-        <h1 className="text-2xl font-bold">Pedido #{order.id.slice(-6).toUpperCase()}</h1>
-        <p className="text-sm opacity-80 mt-1">{order.customer_name}</p>
+
+        <div className="relative px-5 pt-8 pb-6">
+          {/* Restaurant name */}
+          <p className="text-sm font-medium opacity-80 mb-4">{restaurant?.name}</p>
+
+          {/* Status hero */}
+          <div className="flex items-center gap-4 mb-5">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-3xl">
+              {currentStep?.icon}
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide opacity-70 mb-0.5">Estado actual</p>
+              <h1 className="text-2xl font-bold leading-tight">{currentStep?.label}</h1>
+              <p className="text-sm opacity-80 mt-0.5">{currentStep?.desc}</p>
+            </div>
+          </div>
+
+          {/* Order meta row */}
+          <div className="flex items-center gap-3">
+            <span className="bg-white/20 rounded-full px-3 py-1 text-xs font-mono font-semibold tracking-wider">
+              #{order.id.slice(-6).toUpperCase()}
+            </span>
+            {order.estimated_time_min && !isDelivered && (
+              <span className="flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1 text-xs font-medium">
+                <Clock size={11} />
+                ~{order.estimated_time_min} min
+              </span>
+            )}
+            {isDelivered && (
+              <span className="flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1 text-xs font-medium">
+                ✓ Completado
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-6 space-y-5">
-        {/* Progress */}
-        <div className="bg-white rounded-2xl border p-5">
-          <h2 className="font-semibold mb-4">Estado del pedido</h2>
-          <div className="space-y-3">
-            {STATUS_STEPS.map((step, idx) => {
-              const done = idx < currentIdx
-              const active = idx === currentIdx
-              const pending = idx > currentIdx
+      <div className="max-w-md mx-auto px-4 py-5 space-y-4">
 
-              return (
-                <div key={step.key} className="flex items-center gap-3">
-                  <div className="shrink-0">
-                    {done ? (
-                      <CheckCircle2 size={20} style={{ color: primaryColor }} />
-                    ) : active ? (
+        {/* ── Progress stepper ───────────────────────────── */}
+        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+          <div className="px-5 py-4 border-b">
+            <h2 className="text-sm font-semibold text-slate-800">Seguimiento del pedido</h2>
+          </div>
+          <div className="px-5 py-4">
+            <div className="space-y-0">
+              {STATUS_STEPS.map((step, idx) => {
+                const done    = idx < currentIdx
+                const active  = idx === currentIdx
+                const pending = idx > currentIdx
+                const isLast  = idx === STATUS_STEPS.length - 1
+
+                return (
+                  <div key={step.key} className="flex gap-4">
+                    {/* Dot + line */}
+                    <div className="flex flex-col items-center">
                       <div
-                        className="w-5 h-5 rounded-full border-2 flex items-center justify-center"
-                        style={{ borderColor: primaryColor }}
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm transition-all ${
+                          done    ? 'bg-slate-800 text-white' :
+                          active  ? 'text-white ring-4 ring-offset-1 shadow-md' :
+                          'bg-slate-100 text-slate-300'
+                        }`}
+                        style={active ? { backgroundColor: primaryColor, ringColor: primaryColor + '40' } : undefined}
                       >
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: primaryColor }} />
+                        {done ? '✓' : step.icon}
                       </div>
-                    ) : (
-                      <Circle size={20} className="text-gray-200" />
-                    )}
+                      {!isLast && (
+                        <div className={`w-0.5 flex-1 my-1 min-h-[20px] rounded-full transition-colors ${done ? 'bg-slate-800' : 'bg-slate-100'}`} />
+                      )}
+                    </div>
+
+                    {/* Label */}
+                    <div className={`pb-4 pt-0.5 min-w-0 ${isLast ? 'pb-0' : ''}`}>
+                      <p className={`text-sm leading-snug ${
+                        done    ? 'text-slate-500 line-through decoration-slate-300' :
+                        active  ? 'font-semibold text-slate-900' :
+                        'text-slate-300'
+                      }`}>
+                        {step.label}
+                      </p>
+                      {active && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{step.desc}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm ${pending ? 'text-muted-foreground' : active ? 'font-semibold' : ''}`}>
-                      {step.icon} {step.label}
-                    </span>
-                    {active && (
-                      <span className="text-xs px-2 py-0.5 rounded-full text-white animate-pulse"
-                        style={{ backgroundColor: primaryColor }}>
-                        Ahora
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         </div>
 
-        {/* Resumen */}
-        <div className="bg-white rounded-2xl border p-5">
-          <h2 className="font-semibold mb-3">Tu pedido</h2>
-          <ul className="space-y-1.5 text-sm mb-3">
+        {/* ── Driver card ────────────────────────────────── */}
+        {order.drivers && ['on_the_way', 'delivered'].includes(order.status) && (() => {
+          const d = order.drivers!
+          const DriverIcon = VEHICLE_ICON[d.vehicle_type]
+          const wa = d.whatsapp.replace(/\D/g, '')
+          return (
+            <div className="bg-white rounded-2xl shadow-sm border p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Tu repartidor</p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl text-white text-lg font-bold"
+                    style={{ backgroundColor: primaryColor }}>
+                    {d.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">{d.name}</p>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                      <DriverIcon size={11} />
+                      {VEHICLE_LABEL[d.vehicle_type]}
+                    </div>
+                  </div>
+                </div>
+                <a
+                  href={`https://wa.me/${wa}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors"
+                >
+                  <MessageCircle size={14} />
+                  WhatsApp
+                </a>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* ── Order summary ──────────────────────────────── */}
+        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+          <div className="px-5 py-4 border-b flex items-center gap-2">
+            <Receipt size={14} className="text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-slate-800">Resumen del pedido</h2>
+          </div>
+          <div className="px-5 py-4 space-y-2">
             {items.map((item, i) => (
-              <li key={i} className="flex justify-between">
-                <span>{item.quantity}x {item.name}</span>
-              </li>
+              <div key={i} className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white text-[10px] font-bold"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {item.quantity}
+                  </span>
+                  <span className="text-sm text-slate-700 truncate">{item.name}</span>
+                </div>
+                {(item.subtotal ?? item.unit_price) && (
+                  <span className="text-sm text-slate-500 shrink-0">
+                    {formatCurrency((item.subtotal ?? (item.unit_price! * item.quantity)))}
+                  </span>
+                )}
+              </div>
             ))}
-          </ul>
-          <div className="border-t pt-3 flex justify-between font-semibold">
-            <span>Total</span>
-            <span>{formatCurrency(Number(order.total))}</span>
+          </div>
+          <div className="px-5 py-3 bg-slate-50 border-t flex items-center justify-between">
+            <span className="text-sm font-semibold text-slate-800">Total</span>
+            <span className="text-base font-bold text-slate-900">{formatCurrency(Number(order.total))}</span>
           </div>
           {order.stripe_session_id && (
-            <div className="mt-2 flex items-center gap-1.5 text-xs text-violet-700 bg-violet-50 rounded-lg px-3 py-1.5">
-              💳 Pagado con tarjeta
+            <div className="px-5 py-2.5 border-t flex items-center gap-2 text-xs text-violet-700 bg-violet-50">
+              💳 <span>Pagado con tarjeta</span>
             </div>
           )}
         </div>
 
-        {/* Tipo de orden */}
-        <div className="bg-white rounded-2xl border p-4 flex items-center gap-3">
-          <span className="text-2xl">
+        {/* ── Order type ─────────────────────────────────── */}
+        <div className="bg-white rounded-2xl shadow-sm border p-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xl">
             {order.order_type === 'delivery' ? '🛵' : order.order_type === 'pickup' ? '🏃' : '🪑'}
-          </span>
-          <div>
-            <p className="font-medium text-sm">
-              {order.order_type === 'delivery' ? 'Servicio a domicilio' : order.order_type === 'pickup' ? 'Para llevar' : `Mesa ${order.table_number ?? ''}`}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-800">
+              {order.order_type === 'delivery' ? 'A domicilio' : order.order_type === 'pickup' ? 'Para llevar' : `Mesa ${order.table_number ?? ''}`}
             </p>
             {order.order_type === 'delivery' && order.delivery_address && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+                <MapPin size={10} className="shrink-0" />
                 {(order.delivery_address as { street?: string }).street}
               </p>
             )}
           </div>
         </div>
 
-        {/* Tarjeta del repartidor */}
-        {order.drivers && ['on_the_way', 'delivered'].includes(order.status) && (() => {
-          const d = order.drivers!
-          const DriverIcon = VEHICLE_ICON[d.vehicle_type]
-          const wa = d.whatsapp.replace(/\D/g, '')
-          return (
-            <div className="bg-white rounded-2xl border p-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
-                  <DriverIcon size={18} className="text-slate-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Tu repartidor</p>
-                  <p className="font-semibold text-sm">{d.name}</p>
-                  <p className="text-xs text-muted-foreground">{VEHICLE_LABEL[d.vehicle_type]}</p>
-                </div>
-              </div>
-              <a
-                href={`https://wa.me/${wa}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
-              >
-                <MessageCircle size={14} />
-                WhatsApp
-              </a>
-            </div>
-          )
-        })()}
-
-        {/* Estimated time */}
-        {order.estimated_time_min && order.status !== 'delivered' && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground justify-center">
-            <Clock size={14} />
-            Tiempo estimado: ~{order.estimated_time_min} min
-          </div>
-        )}
-
-        {/* Acceso al dashboard del cliente */}
+        {/* ── Mi cuenta ──────────────────────────────────── */}
         <a
           href="/cliente"
-          className="flex items-center justify-between bg-white rounded-2xl border px-4 py-3 hover:bg-gray-50 transition-colors"
+          className="flex items-center justify-between bg-white rounded-2xl shadow-sm border px-4 py-3.5 hover:bg-slate-50 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100 text-orange-600 text-lg">
-              👤
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl text-white text-sm" style={{ backgroundColor: primaryColor }}>
+              <User size={16} />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-800">Mi cuenta</p>
+              <p className="text-sm font-semibold text-slate-800">Mi cuenta</p>
               <p className="text-xs text-muted-foreground">Ver mis pedidos y direcciones</p>
             </div>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="m9 18 6-6-6-6"/></svg>
+          <ChevronRight size={16} className="text-slate-300" />
         </a>
+
       </div>
     </div>
   )
