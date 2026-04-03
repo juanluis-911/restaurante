@@ -25,6 +25,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta name="theme-color" content="#0f172a" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        {/* Captura beforeinstallprompt antes de que React hidrate */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaInstallPrompt=e;});`,
+          }}
+        />
       </head>
       <body className={inter.className}>
         {children}
