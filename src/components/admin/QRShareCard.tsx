@@ -5,7 +5,7 @@ import QRCode from 'react-qr-code'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Copy, Download, QrCode, Bike, UtensilsCrossed } from 'lucide-react'
+import { Copy, Download, QrCode, Bike, UtensilsCrossed, Smartphone } from 'lucide-react'
 
 interface Props {
   slug: string
@@ -63,8 +63,8 @@ function QRPanel({
     <div className="flex flex-col items-center gap-4 p-4 rounded-xl border bg-slate-50">
       {/* Header */}
       <div className="flex items-center gap-2 self-start">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: color }}>
-          <span className="text-white">{icon}</span>
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg text-white" style={{ backgroundColor: color }}>
+          {icon}
         </div>
         <div>
           <p className="text-sm font-semibold text-slate-800">{title}</p>
@@ -86,11 +86,11 @@ function QRPanel({
       <div className="flex gap-2 w-full">
         <Button type="button" variant="outline" size="sm" className="flex-1 gap-1.5 text-xs" onClick={copyLink}>
           <Copy size={13} />
-          Copiar enlace
+          Copiar
         </Button>
         <Button type="button" variant="outline" size="sm" className="flex-1 gap-1.5 text-xs" onClick={downloadQR}>
           <Download size={13} />
-          Descargar QR
+          Descargar
         </Button>
       </div>
     </div>
@@ -102,6 +102,7 @@ export default function QRShareCard({ slug }: Props) {
     ? window.location.origin
     : process.env.NEXT_PUBLIC_SITE_URL ?? ''
 
+  const appUrl    = `${siteUrl}/install`
   const clientUrl = `${siteUrl}/${slug}/install`
   const driverUrl = `${siteUrl}/driver/install`
 
@@ -116,23 +117,40 @@ export default function QRShareCard({ slug }: Props) {
           Comparte estos QR para que clientes y repartidores descarguen la app.
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <CardContent className="space-y-6">
+
+        {/* App general — más prominente */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">App general TuriEats</p>
           <QRPanel
-            title="QR Clientes"
-            description="Para que los clientes pidan"
-            url={clientUrl}
-            icon={<UtensilsCrossed size={14} />}
+            title="App TuriEats"
+            description="Todos los restaurantes en una app"
+            url={appUrl}
+            icon={<Smartphone size={14} />}
             color="#f97316"
           />
-          <QRPanel
-            title="QR Repartidores"
-            description="Para el equipo de entregas"
-            url={driverUrl}
-            icon={<Bike size={14} />}
-            color="#0f172a"
-          />
         </div>
+
+        <div className="border-t pt-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Directamente a tu restaurante</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <QRPanel
+              title="QR Clientes"
+              description={`Va directo a ${slug}`}
+              url={clientUrl}
+              icon={<UtensilsCrossed size={14} />}
+              color="#0f172a"
+            />
+            <QRPanel
+              title="QR Repartidores"
+              description="Para el equipo de entregas"
+              url={driverUrl}
+              icon={<Bike size={14} />}
+              color="#0f172a"
+            />
+          </div>
+        </div>
+
       </CardContent>
     </Card>
   )

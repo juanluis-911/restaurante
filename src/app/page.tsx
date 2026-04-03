@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { isRestaurantOpen, formatCurrency } from '@/lib/utils/helpers'
 import { MapPin, Truck, Clock, UtensilsCrossed, User, ChevronRight, Star, Zap } from 'lucide-react'
 import { redirect } from 'next/navigation'
+import InstallBanner from '@/components/shared/InstallBanner'
+import ShareAppButton from '@/components/public/ShareAppButton'
 
 export const revalidate = 60
 
@@ -33,6 +35,9 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+
+      {/* ── Install Banner ── */}
+      <InstallBanner />
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b shadow-sm">
@@ -215,9 +220,14 @@ export default async function LandingPage() {
         )}
       </main>
 
-      <footer className="border-t py-6 px-5 text-center text-xs text-slate-400 mt-4">
-        © {new Date().getFullYear()} TuriEats · Todos los derechos reservados ·{' '}
-        <Link href="/auth/login" className="hover:text-slate-600 transition-colors">¿Tienes un restaurante?</Link>
+      <footer className="border-t py-6 px-5 mt-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-6xl mx-auto">
+          <p className="text-xs text-slate-400">
+            © {new Date().getFullYear()} TuriEats · Todos los derechos reservados ·{' '}
+            <Link href="/auth/login" className="hover:text-slate-600 transition-colors">¿Tienes un restaurante?</Link>
+          </p>
+          <ShareAppButton />
+        </div>
       </footer>
     </div>
   )
