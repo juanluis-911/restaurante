@@ -91,9 +91,9 @@ export default async function ClienteDashboardPage() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/">
-            <Image src="/turieats.png" alt="TuriEats" width={100} height={30} className="h-7 w-auto object-contain" />
+            <Image src="/turieats.png" alt="TuriEats" width={160} height={48} className="h-10 w-auto object-contain" />
           </Link>
           <div className="flex items-center gap-2">
             <Link

@@ -133,7 +133,7 @@ function ClienteLoginForm() {
       <header className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-4 h-12 flex items-center justify-between">
           <Link href="/">
-            <Image src="/turieats.png" alt="TuriEats" width={100} height={30} className="h-7 w-auto object-contain" />
+            <Image src="/turieats.png" alt="TuriEats" width={160} height={48} className="h-10 w-auto object-contain" />
           </Link>
           <Link href="/auth/login" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
             ¿Eres un restaurante?
