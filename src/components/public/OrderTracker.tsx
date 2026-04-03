@@ -207,16 +207,6 @@ export default function OrderTracker({ initialOrder }: Props) {
             Tiempo estimado: ~{order.estimated_time_min} min
           </div>
         )}
-
-        {/* Dashboard link */}
-        <div className="text-center pb-2">
-          <a
-            href="/dashboard/orders"
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
-          >
-            Ir al dashboard
-          </a>
-        </div>
       </div>
     </div>
   )
