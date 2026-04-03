@@ -131,7 +131,7 @@ export function OrderHistoryCard({ order }: { order: OrderCardData }) {
                   <span className="font-medium text-slate-900">{item.quantity}×</span> {item.name}
                   {item.notes && <span className="text-muted-foreground italic"> ({item.notes})</span>}
                 </span>
-                <span className="text-slate-600 shrink-0">{formatCurrency(item.subtotal)}</span>
+                <span className="text-slate-600 shrink-0">{formatCurrency(item.subtotal ?? item.unit_price * item.quantity)}</span>
               </div>
             ))}
           </div>
