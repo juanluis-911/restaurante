@@ -247,6 +247,12 @@ export default function StorefrontClient({
     finally { setLoading(false) }
   }
 
+  // ── Agregar al carrito (requiere login) ───────────────────
+  function addToCart(item: Parameters<typeof cart.addItem>[0]) {
+    if (!isLoggedIn) { setLoginPrompt(true); return }
+    cart.addItem(item)
+  }
+
   // ── Scroll a categoría ─────────────────────────────────────
   function scrollToCategory(id: string) {
     setActiveCatId(id)
@@ -492,7 +498,7 @@ export default function StorefrontClient({
                             <button
                               className="flex items-center gap-1 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-opacity hover:opacity-80"
                               style={{ backgroundColor: primaryColor }}
-                              onClick={() => cart.addItem({
+                              onClick={() => addToCart({
                                 id: product.id, type: 'product', name: product.name,
                                 price: discountedPrice, original_price: Number(product.price),
                                 image_url: product.image_url,
@@ -575,7 +581,7 @@ export default function StorefrontClient({
                           <button
                             className="flex items-center gap-1 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-opacity hover:opacity-80"
                             style={{ backgroundColor: primaryColor }}
-                            onClick={() => cart.addItem({
+                            onClick={() => addToCart({
                               id: combo.id, type: 'combo', name: combo.name,
                               price: Number(combo.price), original_price: Number(combo.price),
                               image_url: combo.image_url,
