@@ -89,11 +89,10 @@ export async function POST(request: NextRequest) {
     total:          String(body.total),
     items_json:     JSON.stringify(body.items.map((i) => ({
       ...(i.type === 'product' ? { product_id: i.id } : { combo_id: i.id }),
-      name:         i.name,
-      quantity:     i.quantity,
-      unit_price:   i.unit_price,
-      subtotal:     i.unit_price * i.quantity,
-      discount_amount: (i.original_price - i.unit_price) * i.quantity,
+      name:            i.name,
+      quantity:        i.quantity,
+      unit_price:      i.unit_price,
+      discount_amount: Math.round((i.original_price - i.unit_price) * i.quantity * 100) / 100,
     }))),
   }
 
