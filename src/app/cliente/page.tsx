@@ -60,10 +60,11 @@ export default async function ClienteDashboardPage() {
   const pastOrders   = allOrders.filter((o) =>  ['delivered', 'cancelled'].includes(o.status))
 
   // Stats
-  const totalSpent    = allOrders.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + Number(o.total), 0)
-  const totalOrders   = allOrders.filter((o) => o.status !== 'cancelled').length
-  const restaurantSet = new Set(allOrders.filter((o) => o.status !== 'cancelled').map((o) => o.restaurants?.name))
-  const uniqueRests   = restaurantSet.size
+  const completedOrders = allOrders.filter((o) => o.status !== 'cancelled')
+  const totalOrders     = completedOrders.length
+  const totalDiscount   = completedOrders.reduce((s, o) => s + Number(o.discount_amount ?? 0), 0)
+  const restaurantSet   = new Set(completedOrders.map((o) => o.restaurants?.name))
+  const uniqueRests     = restaurantSet.size
 
   // Favorite restaurant
   const restCount = new Map<string, number>()
@@ -140,8 +141,8 @@ export default async function ClienteDashboardPage() {
               <p className="text-xs text-slate-400 mt-0.5">Pedidos</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold">{formatCurrency(totalSpent)}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Gastado</p>
+              <p className="text-2xl font-bold text-green-400">{formatCurrency(totalDiscount)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Ahorrado</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold">{uniqueRests}</p>
@@ -160,6 +161,21 @@ export default async function ClienteDashboardPage() {
             </div>
           )}
         </div>
+
+        {/* ── CTA explorar restaurantes ───────────────────── */}
+        <Link
+          href="/"
+          className="flex items-center justify-between bg-orange-500 hover:bg-orange-600 transition-colors text-white rounded-2xl px-5 py-4"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🍽️</span>
+            <div>
+              <p className="font-semibold text-sm">Explorar restaurantes</p>
+              <p className="text-xs text-orange-100">Descubre nuevos sabores y haz tu pedido</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="opacity-80" />
+        </Link>
 
         {/* ── Pedidos activos ─────────────────────────────── */}
         {activeOrders.length > 0 && (
