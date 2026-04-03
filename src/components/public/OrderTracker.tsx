@@ -83,7 +83,14 @@ export default function OrderTracker({ initialOrder }: Props) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="text-white py-6 px-4 text-center" style={{ backgroundColor: primaryColor }}>
+      <div className="text-white py-6 px-4 text-center relative" style={{ backgroundColor: primaryColor }}>
+        <a
+          href="/cliente"
+          className="absolute right-4 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          title="Mi cuenta"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        </a>
         <p className="text-sm opacity-80 mb-1">{restaurant?.name}</p>
         <h1 className="text-2xl font-bold">Pedido #{order.id.slice(-6).toUpperCase()}</h1>
         <p className="text-sm opacity-80 mt-1">{order.customer_name}</p>
