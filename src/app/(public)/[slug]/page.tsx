@@ -11,6 +11,8 @@ export default async function StorefrontPage({ params }: Props) {
   const { slug } = await params
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+
   const { data: restaurant } = await supabase
     .from('restaurants')
     .select('*')
@@ -73,6 +75,7 @@ export default async function StorefrontPage({ params }: Props) {
       products={products ?? []}
       combos={combos ?? []}
       discounts={discounts ?? []}
+      isLoggedIn={!!user}
     />
   )
 }

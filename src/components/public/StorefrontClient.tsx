@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { toast } from 'sonner'
 import { useCart } from '@/lib/hooks/useCart'
 import { formatCurrency } from '@/lib/utils/helpers'
-import { ShoppingCart, Clock, Phone, Plus, Minus, X, Ticket, ArrowLeft, CreditCard, Banknote, ChevronRight } from 'lucide-react'
+import { ShoppingCart, Clock, Phone, Plus, Minus, X, Ticket, ArrowLeft, CreditCard, Banknote, ChevronRight, LogIn } from 'lucide-react'
 import Link from 'next/link'
 import type { Database } from '@/types/database'
 
@@ -29,14 +29,16 @@ interface Props {
   products: Product[]
   combos: Combo[]
   discounts: Discount[]
+  isLoggedIn: boolean
 }
 
 export default function StorefrontClient({
-  restaurant, isOpen, menus, categories, products, combos, discounts,
+  restaurant, isOpen, menus, categories, products, combos, discounts, isLoggedIn,
 }: Props) {
   const [activeMenuId,  setActiveMenuId]  = useState(menus[0]?.id ?? null)
   const [cartOpen,      setCartOpen]      = useState(false)
   const [checkoutOpen,  setCheckoutOpen]  = useState(false)
+  const [loginPrompt,   setLoginPrompt]   = useState(false)
   const [loading,       setLoading]       = useState(false)
   const [activeCatId,   setActiveCatId]   = useState<string | null>(null)
   const catRefs = useRef<Record<string, HTMLElement | null>>({})
@@ -673,12 +675,49 @@ export default function StorefrontClient({
               <Button
                 className="w-full rounded-xl font-semibold"
                 style={{ backgroundColor: primaryColor }}
-                onClick={() => { setCartOpen(false); setCheckoutOpen(true) }}
+                onClick={() => {
+                  if (!isLoggedIn) { setLoginPrompt(true); return }
+                  setCartOpen(false)
+                  setCheckoutOpen(true)
+                }}
               >
                 Continuar con el pedido <ChevronRight size={14} className="ml-1" />
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Login prompt ─────────────────────────────── */}
+      <Dialog open={loginPrompt} onOpenChange={setLoginPrompt}>
+        <DialogContent className="max-w-sm text-center">
+          <div className="flex flex-col items-center gap-4 py-2">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl text-3xl" style={{ backgroundColor: primaryColor + '15' }}>
+              🔐
+            </div>
+            <div>
+              <DialogTitle className="text-lg font-bold text-slate-900">Inicia sesión para pedir</DialogTitle>
+              <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
+                Crea una cuenta gratis o inicia sesión para completar tu pedido y hacer seguimiento en tiempo real.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 w-full pt-1">
+              <a
+                href={`/cliente/login?modo=registro&next=/${restaurant.slug}`}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-opacity hover:opacity-90"
+                style={{ backgroundColor: primaryColor }}
+              >
+                <LogIn size={15} /> Crear cuenta gratis
+              </a>
+              <a
+                href={`/cliente/login?next=/${restaurant.slug}`}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors"
+              >
+                Ya tengo cuenta · Iniciar sesión
+              </a>
+            </div>
+            <p className="text-xs text-slate-400">Tu carrito se guardará al volver</p>
+          </div>
         </DialogContent>
       </Dialog>
 
