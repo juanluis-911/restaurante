@@ -643,7 +643,12 @@ export default function StorefrontClient({
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{formatCurrency(item.price)} c/u</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(item.price)} c/u
+                        {item.quantity > 1 && (
+                          <span className="font-semibold text-slate-700 ml-1.5">= {formatCurrency(item.price * item.quantity)}</span>
+                        )}
+                      </p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
@@ -652,7 +657,7 @@ export default function StorefrontClient({
                       >
                         {item.quantity === 1 ? <X size={11} /> : <Minus size={11} />}
                       </button>
-                      <span className="text-sm font-bold w-5 text-center">{item.quantity}</span>
+                      <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
                       <button
                         className="w-7 h-7 rounded-full flex items-center justify-center text-white"
                         style={{ backgroundColor: primaryColor }}
@@ -661,9 +666,6 @@ export default function StorefrontClient({
                         <Plus size={11} />
                       </button>
                     </div>
-                    <span className="text-sm font-bold w-16 text-right shrink-0">
-                      {formatCurrency(item.price * item.quantity)}
-                    </span>
                   </div>
                 ))}
               </div>
