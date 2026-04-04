@@ -114,6 +114,11 @@ export default function SettingsForm({ restaurant, hours, stripeConnected, strip
     delivery_radius_km: restaurant.delivery_radius_km?.toString() ?? '',
   })
 
+  const [payments, setPayments] = useState({
+    cash_enabled: restaurant.cash_enabled ?? true,
+    card_enabled: restaurant.card_enabled ?? true,
+  })
+
   const [hoursState, setHoursState] = useState<Hour[]>(hours)
 
   // ── Repartidores ─────────────────────────────────────────────
@@ -208,6 +213,8 @@ export default function SettingsForm({ restaurant, hours, stripeConnected, strip
           delivery_min_order: parseFloat(delivery.delivery_min_order) || 0,
           delivery_radius_km: delivery.delivery_radius_km ? parseFloat(delivery.delivery_radius_km) : null,
           driver_mode: driverMode,
+          cash_enabled: payments.cash_enabled,
+          card_enabled: payments.card_enabled,
         })
         .eq('id', restaurant.id)
 
@@ -615,6 +622,33 @@ export default function SettingsForm({ restaurant, hours, stripeConnected, strip
 
       {/* ── Stripe Connect ───────────────────────────────────── */}
       <StripeConnectCardInline restaurant={restaurant} />
+
+      {/* ── Métodos de pago ──────────────────────────────────── */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Métodos de pago aceptados</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Pagar al recibir (efectivo)</p>
+              <p className="text-xs text-muted-foreground">El cliente paga en efectivo al momento de recibir su pedido</p>
+            </div>
+            <Switch
+              checked={payments.cash_enabled}
+              onCheckedChange={(v) => setPayments((p) => ({ ...p, cash_enabled: v }))}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Pagar con tarjeta (Stripe)</p>
+              <p className="text-xs text-muted-foreground">Requiere cuenta Stripe conectada</p>
+            </div>
+            <Switch
+              checked={payments.card_enabled}
+              onCheckedChange={(v) => setPayments((p) => ({ ...p, card_enabled: v }))}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── QR Codes ─────────────────────────────────────────── */}
       <QRShareCard slug={info.slug} />

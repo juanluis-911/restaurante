@@ -43,7 +43,8 @@ export default function StorefrontClient({
   const [activeCatId,   setActiveCatId]   = useState<string | null>(null)
   const catRefs = useRef<Record<string, HTMLElement | null>>({})
 
-  const hasStripe      = restaurant.stripe_account_status === 'active' && !!restaurant.stripe_account_id
+  const hasStripe      = restaurant.stripe_account_status === 'active' && !!restaurant.stripe_account_id && (restaurant.card_enabled ?? true)
+  const hasCash        = restaurant.cash_enabled ?? true
   const headerImageUrl = (restaurant as { header_image_url?: string | null }).header_image_url
   const primaryColor   = restaurant.primary_color
 
@@ -858,15 +859,17 @@ export default function StorefrontClient({
                   {loading ? 'Redirigiendo…' : `Pagar con tarjeta · ${formatCurrency(orderTotal)}`}
                 </button>
               )}
-              <button
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={!hasStripe ? { backgroundColor: primaryColor, color: 'white' } : { border: '1.5px solid #e2e8f0', color: '#334155' }}
-                onClick={placeOrder}
-                disabled={loading || !form.customer_name.trim()}
-              >
-                <Banknote size={15} />
-                {loading ? 'Enviando…' : hasStripe ? 'Pagar al recibir' : `Hacer pedido · ${formatCurrency(orderTotal)}`}
-              </button>
+              {hasCash && (
+                <button
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={!hasStripe ? { backgroundColor: primaryColor, color: 'white' } : { border: '1.5px solid #e2e8f0', color: '#334155' }}
+                  onClick={placeOrder}
+                  disabled={loading || !form.customer_name.trim()}
+                >
+                  <Banknote size={15} />
+                  {loading ? 'Enviando…' : hasStripe ? 'Pagar al recibir' : `Hacer pedido · ${formatCurrency(orderTotal)}`}
+                </button>
+              )}
             </div>
 
             {hasStripe && (
