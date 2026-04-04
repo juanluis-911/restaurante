@@ -477,7 +477,7 @@ export default function StorefrontClient({
                             )}
                           </div>
 
-                          {inCart ? (
+                          {isOpen && (inCart ? (
                             <div className="flex items-center gap-1.5">
                               <button
                                 className="w-7 h-7 rounded-full border flex items-center justify-center hover:bg-slate-100 transition-colors"
@@ -506,7 +506,7 @@ export default function StorefrontClient({
                             >
                               <Plus size={12} /> Agregar
                             </button>
-                          )}
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -560,7 +560,7 @@ export default function StorefrontClient({
                         <span className="font-bold text-base" style={{ color: primaryColor }}>
                           {formatCurrency(Number(combo.price))}
                         </span>
-                        {inCart ? (
+                        {isOpen && (inCart ? (
                           <div className="flex items-center gap-1.5">
                             <button
                               className="w-7 h-7 rounded-full border flex items-center justify-center hover:bg-slate-100 transition-colors"
@@ -589,7 +589,7 @@ export default function StorefrontClient({
                           >
                             <Plus size={12} /> Agregar
                           </button>
-                        )}
+                        ))}
                       </div>
                     </div>
                   </div>

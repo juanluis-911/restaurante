@@ -209,7 +209,7 @@ export default async function LandingPage() {
                         className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full text-white transition-opacity group-hover:opacity-80"
                         style={{ backgroundColor: restaurant.primary_color }}
                       >
-                        Ordenar <ChevronRight size={12} />
+                        {isOpen ? 'Ordenar' : 'Ver menú'} <ChevronRight size={12} />
                       </span>
                     </div>
                   </div>
