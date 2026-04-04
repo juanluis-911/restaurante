@@ -2,10 +2,9 @@ const CACHE_NAME = 'turieats-v1';
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
-  '/offline',
   '/turieats.png',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -50,10 +49,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Pages: network first, fall back to offline page
+  // Pages: network first, fall back to error
   event.respondWith(
-    fetch(request)
-      .catch(() => caches.match('/offline').then((res) => res ?? Response.error()))
+    fetch(request).catch(() => Response.error())
   );
 });
 
@@ -75,7 +73,7 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(title, {
       body,
       icon: '/icons/icon-192.png',
-      badge: '/icons/icon-72.png',
+      badge: '/icons/icon-72x72.png',
       tag: tag ?? 'turieats',
       renotify: true,
       data: { url: url ?? '/' },
