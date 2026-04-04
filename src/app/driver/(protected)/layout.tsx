@@ -11,7 +11,7 @@ export default async function DriverProtectedLayout({ children }: { children: Re
     .from('drivers')
     .select('id')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!driver) redirect('/driver/login')
 

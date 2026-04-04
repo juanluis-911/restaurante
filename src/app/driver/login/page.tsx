@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,16 @@ export default function DriverLoginPage() {
   const [whatsapp, setWhatsapp] = useState('')
   const [vehicle,  setVehicle]  = useState<'moto' | 'carro' | 'bicicleta'>('moto')
 
+  useEffect(() => {
+    async function checkSession() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: driver } = await supabase.from('drivers').select('id').eq('user_id', user.id).maybeSingle()
+      if (driver) router.replace('/driver')
+    }
+    checkSession()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handleGoogleAuth() {
     const origin = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin
     await supabase.auth.signInWithOAuth({
@@ -42,9 +52,25 @@ export default function DriverLoginPage() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('No se pudo obtener la sesión')
+
+      const { data: driver } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (!driver) {
+        await supabase.auth.signOut()
+        toast.error('No hay un perfil de repartidor asociado a este correo. Regístrate primero.')
+        return
+      }
+
       router.push('/driver')
-    } catch {
-      toast.error('Correo o contraseña incorrectos')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Correo o contraseña incorrectos')
     } finally {
       setLoading(false)
     }
