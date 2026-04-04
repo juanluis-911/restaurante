@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { formatDistanceToNow, format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronRight, X, Bike, Car, Zap } from 'lucide-react'
+import { ChevronRight, X, Bike, Car, Zap, Bell, BellOff } from 'lucide-react'
 import type { Database } from '@/types/database'
+import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
+import { notifyOrderStatusChanged } from '@/lib/actions/push-actions'
 
 type Order = Database['public']['Tables']['orders']['Row'] & {
   drivers?: { name: string; whatsapp: string; vehicle_type: 'moto' | 'carro' | 'bicicleta' } | null
@@ -41,16 +43,22 @@ const fmt = (n: number) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n)
 
 interface Props {
-  initialOrders: Order[]
-  restaurantId: string
+  initialOrders:  Order[]
+  restaurantId:   string
+  restaurantSlug: string
 }
 
-export default function OrdersKanban({ initialOrders, restaurantId }: Props) {
+export default function OrdersKanban({ initialOrders, restaurantId, restaurantSlug }: Props) {
   const [orders,        setOrders]        = useState<Order[]>(initialOrders)
   const [history,       setHistory]       = useState<Order[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
   const [view,          setView]          = useState<'kanban' | 'history'>('kanban')
   const supabase = createClient()
+
+  const { isSupported, isSubscribed, subscribe } = usePushNotifications({
+    type: 'restaurant',
+    id:   restaurantId,
+  })
 
   const fetchActive = useCallback(async () => {
     const { data } = await supabase
@@ -117,36 +125,78 @@ export default function OrdersKanban({ initialOrders, restaurantId }: Props) {
 
     if (next === 'delivered') toast.success('Pedido terminado ✓')
     if (next === 'on_the_way') toast.success('Pedido entregado al repartidor 🛵')
+
+    // Notificaciones push
+    notifyOrderStatusChanged({
+      orderId:        order.id,
+      newStatus:      next,
+      orderType:      order.order_type,
+      driverId:       order.driver_id ?? null,
+      restaurantSlug,
+      shortId:        order.id.slice(-5).toUpperCase(),
+    }).catch(() => {/* silencioso */})
   }
 
   async function cancelOrder(order: Order) {
     if (!confirm(`¿Cancelar el pedido de ${order.customer_name}?`)) return
     const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
-    if (error) toast.error('No se pudo cancelar')
-    else toast.warning('Pedido cancelado')
+    if (error) { toast.error('No se pudo cancelar'); return }
+
+    toast.warning('Pedido cancelado')
+
+    notifyOrderStatusChanged({
+      orderId:        order.id,
+      newStatus:      'cancelled',
+      orderType:      order.order_type,
+      driverId:       order.driver_id ?? null,
+      restaurantSlug,
+      shortId:        order.id.slice(-5).toUpperCase(),
+    }).catch(() => {/* silencioso */})
   }
 
   const totalActive = orders.length
 
   return (
     <div className="space-y-4">
-      {/* Tabs */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setView('kanban')}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${view === 'kanban' ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted border-border'}`}
-        >
-          Órdenes activas
-          {totalActive > 0 && (
-            <span className="ml-2 bg-white/20 text-xs px-1.5 py-0.5 rounded-full">{totalActive}</span>
-          )}
-        </button>
-        <button
-          onClick={() => { setView('history'); loadHistory() }}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${view === 'history' ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted border-border'}`}
-        >
-          Historial
-        </button>
+      {/* Tabs + botón notificaciones */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setView('kanban')}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${view === 'kanban' ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted border-border'}`}
+          >
+            Órdenes activas
+            {totalActive > 0 && (
+              <span className="ml-2 bg-white/20 text-xs px-1.5 py-0.5 rounded-full">{totalActive}</span>
+            )}
+          </button>
+          <button
+            onClick={() => { setView('history'); loadHistory() }}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${view === 'history' ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted border-border'}`}
+          >
+            Historial
+          </button>
+        </div>
+
+        {isSupported && (
+          <button
+            onClick={async () => {
+              if (isSubscribed) return
+              const ok = await subscribe()
+              if (ok) toast.success('Notificaciones activadas ✓')
+              else    toast.error('No se pudo activar las notificaciones')
+            }}
+            title={isSubscribed ? 'Notificaciones activas' : 'Activar notificaciones push'}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              isSubscribed
+                ? 'bg-green-50 border-green-200 text-green-700 cursor-default'
+                : 'hover:bg-muted border-border text-muted-foreground'
+            }`}
+          >
+            {isSubscribed ? <Bell size={13} /> : <BellOff size={13} />}
+            {isSubscribed ? 'Notificaciones activas' : 'Activar notificaciones'}
+          </button>
+        )}
       </div>
 
       {/* ── Kanban ────────────────────────────────────────── */}

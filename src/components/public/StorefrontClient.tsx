@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/utils/helpers'
 import { ShoppingCart, Clock, Phone, Plus, Minus, X, Ticket, ArrowLeft, CreditCard, Banknote, ChevronRight, LogIn } from 'lucide-react'
 import Link from 'next/link'
 import type { Database } from '@/types/database'
+import { notifyNewOrder } from '@/lib/actions/push-actions'
 
 type Restaurant = Database['public']['Tables']['restaurants']['Row']
 type Menu       = Database['public']['Tables']['menus']['Row']
@@ -240,6 +241,16 @@ export default function StorefrontClient({
           .update({ used_count: c.used_count + 1 })
           .eq('code', form.coupon_code.toUpperCase()).eq('restaurant_id', restaurant.id)
       }
+
+      // Notificar al restaurante (pago en efectivo)
+      notifyNewOrder({
+        restaurantId: restaurant.id,
+        orderId:      order.id,
+        total:        orderTotal,
+        isPaid:       false,
+        shortId:      order.id.slice(-5).toUpperCase(),
+      }).catch(() => {/* silencioso */})
+
       cart.clearCart()
       setCheckoutOpen(false)
       setCartOpen(false)

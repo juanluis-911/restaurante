@@ -2,6 +2,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 import type { NextRequest } from 'next/server'
 import type { Database } from '@/types/database'
+import { notifyNewOrder } from '@/lib/actions/push-actions'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -72,6 +73,15 @@ export async function GET(request: NextRequest) {
       console.error('Error creating order after payment:', error)
       return Response.redirect(`${baseUrl}/${slug}?payment_error=1`)
     }
+
+    // Notificar al restaurante — pago confirmado con tarjeta
+    notifyNewOrder({
+      restaurantId: meta.restaurant_id,
+      orderId:      order.id,
+      total:        Number(meta.total),
+      isPaid:       true,
+      shortId:      order.id.slice(-5).toUpperCase(),
+    }).catch(() => {/* silencioso */})
 
     return Response.redirect(`${baseUrl}/${slug}/order/${order.id}?paid=1`)
   } catch (err) {

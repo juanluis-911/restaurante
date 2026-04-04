@@ -25,7 +25,7 @@ export default async function OrdersPage() {
         <h1 className="text-2xl font-semibold">Órdenes</h1>
         <p className="text-muted-foreground text-sm mt-1">Gestión completa del flujo de pedidos en tiempo real</p>
       </div>
-      <OrdersKanban initialOrders={orders ?? []} restaurantId={restaurant.id} />
+      <OrdersKanban initialOrders={orders ?? []} restaurantId={restaurant.id} restaurantSlug={restaurant.slug} />
     </div>
   )
 }

@@ -6,9 +6,10 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/helpers'
 import { toast } from 'sonner'
 import { Toaster } from 'sonner'
-import { MapPin, Package, CheckCircle2, LogOut, Bike, Car, Zap, Clock, ChevronRight } from 'lucide-react'
+import { MapPin, Package, CheckCircle2, LogOut, Bike, Car, Zap, Clock, ChevronRight, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import InstallBanner from '@/components/shared/InstallBanner'
+import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
 
 type Driver = {
   id: string
@@ -61,6 +62,11 @@ export default function DriverDashboard({ driver: initialDriver, availableOrders
   const [delivering, setDelivering]   = useState(false)
 
   const VehicleIcon = VEHICLE_ICONS[driver.vehicle_type]
+
+  const { isSupported: pushSupported, isSubscribed: pushSubscribed, subscribe: subscribePush } = usePushNotifications({
+    type: 'driver',
+    id:   driver.id,
+  })
 
   // Sincronizar con nuevas props cuando el servidor refresca
   useEffect(() => { setAvailable(initialOrders) }, [initialOrders])
@@ -180,6 +186,23 @@ export default function DriverDashboard({ driver: initialDriver, availableOrders
               {isOnline ? 'En línea' : 'Fuera de línea'}
             </button>
 
+            {pushSupported && (
+              <button
+                onClick={async () => {
+                  if (pushSubscribed) return
+                  const ok = await subscribePush()
+                  if (ok) toast.success('Notificaciones activadas ✓')
+                }}
+                title={pushSubscribed ? 'Notificaciones activas' : 'Activar notificaciones'}
+                className={`p-2 rounded-lg transition-colors ${
+                  pushSubscribed
+                    ? 'text-green-400 cursor-default'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Bell size={16} />
+              </button>
+            )}
             <button onClick={handleLogout} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
               <LogOut size={16} />
             </button>

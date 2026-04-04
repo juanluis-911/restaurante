@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/helpers'
-import { Clock, MessageCircle, Bike, Car, Zap, User, ChevronRight, MapPin, Receipt } from 'lucide-react'
+import { Clock, MessageCircle, Bike, Car, Zap, User, ChevronRight, MapPin, Receipt, Bell } from 'lucide-react'
 import type { Database } from '@/types/database'
+import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
 
 type Order = Database['public']['Tables']['orders']['Row'] & {
   restaurants: {
@@ -44,6 +45,11 @@ export default function OrderTracker({ initialOrder }: Props) {
   const [order, setOrder] = useState<Order>(initialOrder)
   const supabase = createClient()
   const restaurant = order.restaurants
+
+  const { isSupported, isSubscribed, subscribe } = usePushNotifications({
+    type: 'order',
+    id:   order.id,
+  })
 
   useEffect(() => {
     const channel = supabase
@@ -127,7 +133,7 @@ export default function OrderTracker({ initialOrder }: Props) {
           </div>
 
           {/* Order meta row */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="bg-white/20 rounded-full px-3 py-1 text-xs font-mono font-semibold tracking-wider">
               #{order.id.slice(-6).toUpperCase()}
             </span>
@@ -141,6 +147,23 @@ export default function OrderTracker({ initialOrder }: Props) {
               <span className="flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1 text-xs font-medium">
                 ✓ Completado
               </span>
+            )}
+            {isSupported && !isDelivered && (
+              <button
+                onClick={async () => {
+                  if (isSubscribed) return
+                  await subscribe()
+                }}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  isSubscribed
+                    ? 'bg-white/20 cursor-default'
+                    : 'bg-white/10 hover:bg-white/25 border border-white/30'
+                }`}
+                title={isSubscribed ? 'Recibirás notificaciones de tu pedido' : 'Activar notificaciones del pedido'}
+              >
+                <Bell size={11} />
+                {isSubscribed ? 'Notificaciones activas' : 'Notificarme'}
+              </button>
             )}
           </div>
         </div>
