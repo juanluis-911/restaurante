@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guía para Restaurantes — TuriEats</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f7f4;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+
+    header {
+      background: #FF6B35;
+      color: white;
+      padding: 40px 24px;
+      text-align: center;
+    }
+
+    header img {
+      height: 48px;
+      margin-bottom: 16px;
+      filter: brightness(0) invert(1);
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 48px 24px;
+    }
+
+    .intro {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 40px;
+      border-left: 4px solid #FF6B35;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .intro h2 {
+      font-size: 1.3rem;
+      margin-bottom: 12px;
+      color: #FF6B35;
+    }
+
+    .intro p {
+      color: #444;
+      font-size: 1rem;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-title .badge {
+      background: #FF6B35;
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .section-title .badge.stripe {
+      background: #635BFF;
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+
+    .step {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      transition: transform 0.15s;
+    }
+
+    .step:hover {
+      transform: translateY(-2px);
+    }
+
+    .step-number {
+      background: #FFF0EB;
+      color: #FF6B35;
+      font-weight: 800;
+      font-size: 1.1rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-number.stripe {
+      background: #EEEDFF;
+      color: #635BFF;
+    }
+
+    .step-content h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .step-content p {
+      color: #555;
+      font-size: 0.95rem;
+    }
+
+    .step-content .url {
+      display: inline-block;
+      margin-top: 8px;
+      background: #f3f3f3;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: #333;
+    }
+
+    .step-content .tag {
+      display: inline-block;
+      margin-top: 8px;
+      background: #FFF0EB;
+      color: #FF6B35;
+      border-radius: 20px;
+      padding: 2px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .step-content .tag.stripe {
+      background: #EEEDFF;
+      color: #635BFF;
+    }
+
+    .divider {
+      text-align: center;
+      margin: 0 0 48px;
+      position: relative;
+    }
+
+    .divider::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: #e0e0e0;
+    }
+
+    .divider span {
+      position: relative;
+      background: #f8f7f4;
+      padding: 0 16px;
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    .note {
+      background: #FFFBEB;
+      border: 1px solid #F59E0B;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 40px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .note-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+
+    .note p {
+      color: #78350F;
+      font-size: 0.95rem;
+    }
+
+    .note strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #92400E;
+    }
+
+    .flow-diagram {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 40px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      text-align: center;
+    }
+
+    .flow-diagram h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 28px;
+      color: #333;
+    }
+
+    .flow-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .flow-node {
+      background: #f3f3f3;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #333;
+      min-width: 120px;
+    }
+
+    .flow-node.highlight {
+      background: #FF6B35;
+      color: white;
+    }
+
+    .flow-node.stripe {
+      background: #635BFF;
+      color: white;
+    }
+
+    .flow-arrow {
+      color: #aaa;
+      font-size: 1.4rem;
+    }
+
+    .cta {
+      background: linear-gradient(135deg, #FF6B35, #FF8C42);
+      border-radius: 16px;
+      padding: 40px 32px;
+      text-align: center;
+      color: white;
+    }
+
+    .cta h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .cta p {
+      opacity: 0.9;
+      margin-bottom: 24px;
+      font-size: 1rem;
+    }
+
+    .cta a {
+      display: inline-block;
+      background: white;
+      color: #FF6B35;
+      font-weight: 700;
+      text-decoration: none;
+      padding: 14px 32px;
+      border-radius: 50px;
+      font-size: 1rem;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .cta a:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      color: #888;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.5rem; }
+      .step { flex-direction: column; gap: 12px; }
+      .flow-row { gap: 8px; }
+      .flow-arrow { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="/turieats.png" alt="TuriEats" onerror="this.style.display='none'" />
+    <h1>Guía para Restaurantes</h1>
+    <p>Regístrate y empieza a recibir pedidos en minutos</p>
+  </header>
+
+  <div class="container">
+
+    <div class="intro">
+      <h2>¿Cómo funciona?</h2>
+      <p>Para empezar a vender en TuriEats necesitas dos cosas: crear tu cuenta en nuestra plataforma y conectar tu cuenta de Stripe para recibir pagos directamente en tu banco. El proceso toma menos de 15 minutos.</p>
+    </div>
+
+    <!-- PARTE 1: REGISTRO EN TURIEATS -->
+    <div class="section-title">
+      <div class="badge">1</div>
+      Regístrate en TuriEats
+    </div>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h3>Crea tu cuenta</h3>
+          <p>Entra a TuriEats y regístrate con tu correo electrónico o con tu cuenta de Google.</p>
+          <span class="url">turieats.vercel.app/auth/register</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h3>Completa el perfil de tu restaurante</h3>
+          <p>Agrega el nombre, logo, dirección, horarios y categorías de tu restaurante. Esta información es lo que verán tus clientes.</p>
+          <span class="tag">Panel → Configuración</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h3>Agrega tu menú</h3>
+          <p>Crea tus categorías, productos y combos con fotos, precios y descripciones. Puedes editarlo en cualquier momento.</p>
+          <span class="tag">Panel → Menú</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="divider"><span>Luego conecta tu cuenta de pagos</span></div>
+
+    <!-- PARTE 2: STRIPE -->
+    <div class="section-title">
+      <div class="badge stripe">2</div>
+      Conecta tu cuenta de Stripe
+    </div>
+
+    <div class="note">
+      <div class="note-icon">💡</div>
+      <p>
+        <strong>¿Qué es Stripe?</strong>
+        Stripe es la plataforma de pagos que usamos para que recibas el dinero de tus ventas directamente en tu cuenta bancaria. Es seguro, confiable y usado por millones de negocios en todo el mundo.
+      </p>
+    </div>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-number stripe">1</div>
+        <div class="step-content">
+          <h3>Ve a Configuración → Pagos</h3>
+          <p>Desde tu panel de TuriEats, entra a Configuración y busca la sección de pagos. Haz clic en <strong>"Conectar con Stripe"</strong>.</p>
+          <span class="tag stripe">Panel → Configuración → Pagos</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number stripe">2</div>
+        <div class="step-content">
+          <h3>Serás redirigido a Stripe</h3>
+          <p>Stripe te llevará a su página segura para crear o conectar tu cuenta. Necesitarás proporcionar:</p>
+          <p style="margin-top:8px; color:#333;">
+            📧 Correo electrónico &nbsp;·&nbsp;
+            📱 Número de teléfono &nbsp;·&nbsp;
+            🏦 Datos bancarios (CLABE) &nbsp;·&nbsp;
+            🪪 Identificación oficial
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number stripe">3</div>
+        <div class="step-content">
+          <h3>Completa el formulario de Stripe</h3>
+          <p>Stripe te pedirá información de tu negocio para cumplir con regulaciones financieras. Sigue los pasos hasta ver el mensaje de confirmación.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number stripe">4</div>
+        <div class="step-content">
+          <h3>Regresa a TuriEats — ¡listo!</h3>
+          <p>Al terminar, Stripe te regresará automáticamente a TuriEats. Tu restaurante quedará activado y podrás empezar a recibir pedidos con pago en línea.</p>
+          <span class="tag stripe">Estado: Activo ✓</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- DIAGRAMA -->
+    <div class="flow-diagram">
+      <h2>Flujo de un pedido</h2>
+      <div class="flow-row">
+        <div class="flow-node">Cliente ordena</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node highlight">TuriEats procesa</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node stripe">Stripe transfiere</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">Tu cuenta bancaria</div>
+      </div>
+      <p style="margin-top: 20px; color:#888; font-size:0.9rem;">El dinero llega directamente a tu banco. TuriEats solo facilita la operación.</p>
+    </div>
+
+    <!-- PREGUNTAS FRECUENTES -->
+    <div class="section-title" style="margin-bottom: 20px;">
+      <div class="badge" style="background:#333;">?</div>
+      Preguntas frecuentes
+    </div>
+
+    <div class="steps" style="margin-bottom: 48px;">
+
+      <div class="step">
+        <div class="step-content">
+          <h3>¿Cuánto tiempo tarda en llegar el dinero?</h3>
+          <p>Stripe transfiere los fondos a tu cuenta bancaria generalmente en 2 días hábiles después de cada pago.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-content">
+          <h3>¿Ya tengo cuenta en Stripe, puedo usarla?</h3>
+          <p>Sí. Cuando hagas clic en "Conectar con Stripe" puedes iniciar sesión con tu cuenta existente en lugar de crear una nueva.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-content">
+          <h3>¿Puedo editar mi menú después de activarme?</h3>
+          <p>Sí, puedes editar precios, agregar productos, cambiar fotos y actualizar horarios en cualquier momento desde tu panel.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-content">
+          <h3>¿Qué pasa si no completo el registro en Stripe?</h3>
+          <p>Tu restaurante aparecerá como pendiente y no podrá recibir pagos en línea hasta que completes el proceso. Puedes retomarlo cuando quieras desde Configuración → Pagos.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CTA -->
+    <div class="cta">
+      <h2>¿Listo para empezar?</h2>
+      <p>Regístrate ahora y empieza a recibir pedidos hoy mismo.</p>
+      <a href="https://turieats.vercel.app/auth/register">Crear mi cuenta gratis →</a>
+    </div>
+
+  </div>
+
+  <footer>
+    <p>TuriEats &copy; 2026 · ¿Tienes dudas? Escríbenos a <a href="mailto:soporte@turieats.com" style="color:#FF6B35;">soporte@turieats.com</a></p>
+  </footer>
+
+</body>
+</html>
