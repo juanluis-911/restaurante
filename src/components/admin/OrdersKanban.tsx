@@ -92,15 +92,16 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
     id:   restaurantId,
   })
 
-  const knownOrderIds = useRef<Set<string>>(new Set(initialOrders.map((o) => o.id)))
+  const knownOrderIds  = useRef<Set<string>>(new Set(initialOrders.map((o) => o.id)))
+  const alertInterval  = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // ── Sonido nuevo pedido ────────────────────────────────────
+  // ── Sonido nuevo pedido (estilo UberEats) ─────────────────
   function playChime() {
     try {
       const ctx = new AudioContext()
-      const note = (
+      const tone = (
         freq: number, type: OscillatorType,
-        start: number, peak: number, end: number, vol: number
+        start: number, attackEnd: number, releaseEnd: number, vol: number
       ) => {
         const osc  = ctx.createOscillator()
         const gain = ctx.createGain()
@@ -108,18 +109,42 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
         osc.type = type
         osc.frequency.setValueAtTime(freq, start)
         gain.gain.setValueAtTime(0, start)
-        gain.gain.linearRampToValueAtTime(vol, peak)
-        gain.gain.exponentialRampToValueAtTime(0.001, end)
-        osc.start(start); osc.stop(end)
+        gain.gain.linearRampToValueAtTime(vol, attackEnd)
+        gain.gain.exponentialRampToValueAtTime(0.001, releaseEnd)
+        osc.start(start); osc.stop(releaseEnd)
       }
       const t = ctx.currentTime
-      note(330,  'sine',     t,        t + 0.015, t + 0.13, 0.40)
-      note(523,  'sine',     t + 0.16, t + 0.175, t + 0.27, 0.38)
-      note(784,  'triangle', t + 0.31, t + 0.325, t + 0.62, 0.30)
-      note(2600, 'sawtooth', t + 0.31, t + 0.315, t + 0.355, 0.08)
-      setTimeout(() => ctx.close(), 900)
+      tone(190,  'triangle', t,        t + 0.01, t + 0.18, 0.55) // pulso 1
+      tone(190,  'triangle', t + 0.22, t + 0.23, t + 0.40, 0.55) // pulso 2
+      tone(1320, 'sine',     t + 0.38, t + 0.39, t + 0.85, 0.30) // campana
+      setTimeout(() => ctx.close(), 1500)
     } catch { /* AudioContext no soportado */ }
   }
+
+  // ── Alerta repetida cada 10s mientras haya pedidos sin atender ─
+  function startAlert() {
+    if (alertInterval.current) return          // ya está corriendo
+    playChime()
+    alertInterval.current = setInterval(playChime, 10_000)
+  }
+
+  function stopAlert() {
+    if (!alertInterval.current) return
+    clearInterval(alertInterval.current)
+    alertInterval.current = null
+  }
+
+  // Arrancar/detener alerta según si hay pedidos 'received'
+  useEffect(() => {
+    const hasReceived = orders.some((o) => o.status === 'received')
+    if (hasReceived) startAlert()
+    else             stopAlert()
+    return () => {}   // cleanup lo hace el useEffect de unmount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders])
+
+  // Limpiar al desmontar
+  useEffect(() => () => stopAlert(), [])
 
   // ── Stats del día ──────────────────────────────────────────
   const fetchTodayStats = useCallback(async () => {
@@ -552,9 +577,10 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
                           )}
 
                           {key === 'quote_rejected' && extOrder.rejection_message && (
-                            <p className="text-xs bg-amber-50 text-amber-700 rounded px-2 py-1.5">
-                              🤝 &ldquo;{extOrder.rejection_message}&rdquo;
-                            </p>
+                            <div className="text-xs bg-amber-50 text-amber-700 rounded px-2 py-2 border-l-2 border-amber-400">
+                              <p className="font-medium text-[10px] uppercase tracking-wide text-amber-500 mb-0.5">Propuesta del cliente</p>
+                              <p className="italic">&ldquo;{extOrder.rejection_message}&rdquo;</p>
+                            </div>
                           )}
 
                           {Number(order.total) > 0 && (

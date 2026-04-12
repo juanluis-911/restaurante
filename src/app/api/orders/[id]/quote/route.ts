@@ -47,7 +47,7 @@ export async function POST(
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  if (!['received', 'quote_rejected'].includes(order.status)) {
+  if (!['received', 'quote_rejected', 'quoted'].includes(order.status)) {
     return NextResponse.json({ error: 'Estado inválido para cotizar' }, { status: 400 })
   }
 
