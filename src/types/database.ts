@@ -412,6 +412,7 @@ export type Database = {
           order_text: string | null
           order_type: string
           pos_session_id: string | null
+          quote_message: string | null
           rejection_message: string | null
           restaurant_id: string
           source: string
@@ -442,6 +443,7 @@ export type Database = {
           order_text?: string | null
           order_type: string
           pos_session_id?: string | null
+          quote_message?: string | null
           rejection_message?: string | null
           restaurant_id: string
           source?: string
@@ -472,6 +474,7 @@ export type Database = {
           order_text?: string | null
           order_type?: string
           pos_session_id?: string | null
+          quote_message?: string | null
           rejection_message?: string | null
           restaurant_id?: string
           source?: string

@@ -243,6 +243,16 @@ export default function OrderTracker({ initialOrder }: Props) {
               </div>
             </div>
             <div className="px-5 py-4 space-y-3">
+              {/* Mensaje del negocio */}
+              {(order as Order & { quote_message?: string | null }).quote_message && (
+                <div className="rounded-xl bg-blue-50 border border-blue-100 px-3 py-2.5 flex gap-2">
+                  <span className="text-base shrink-0">💬</span>
+                  <p className="text-sm text-blue-800 leading-snug">
+                    {(order as Order & { quote_message?: string | null }).quote_message}
+                  </p>
+                </div>
+              )}
+
               <div className="rounded-xl border bg-slate-50 p-3 space-y-1.5">
                 {order.delivery_fee > 0 && (
                   <>
@@ -289,9 +299,9 @@ export default function OrderTracker({ initialOrder }: Props) {
                 <button
                   onClick={() => setRejectionOpen(true)}
                   disabled={actionLoading}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm text-red-600 font-medium hover:bg-red-50 transition-colors border border-red-100 disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm text-amber-600 font-medium hover:bg-amber-50 transition-colors border border-amber-200 disabled:opacity-50"
                 >
-                  Rechazar / Complementar
+                  Negociar
                 </button>
               </div>
             </div>
@@ -302,11 +312,11 @@ export default function OrderTracker({ initialOrder }: Props) {
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
             <span className="text-xl">⏳</span>
             <div>
-              <p className="text-sm font-semibold text-amber-800">Esperando nueva cotización</p>
-              <p className="text-xs text-amber-700 mt-0.5">Notificaste tu rechazo. La tienda revisará y enviará una nueva propuesta.</p>
+              <p className="text-sm font-semibold text-amber-800">Negociando tu pedido</p>
+              <p className="text-xs text-amber-700 mt-0.5">Enviaste tu propuesta. La tienda revisará y te enviará una nueva cotización.</p>
               {(order as { rejection_message?: string | null }).rejection_message && (
                 <p className="text-xs text-amber-600 mt-1.5 italic">
-                  Tu mensaje: &ldquo;{(order as { rejection_message?: string | null }).rejection_message}&rdquo;
+                  Tu propuesta: &ldquo;{(order as { rejection_message?: string | null }).rejection_message}&rdquo;
                 </p>
               )}
             </div>
@@ -318,17 +328,17 @@ export default function OrderTracker({ initialOrder }: Props) {
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50">
             <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-slate-800">Rechazar / Complementar</h3>
+                <h3 className="font-semibold text-slate-800">Negociar pedido</h3>
                 <button onClick={() => setRejectionOpen(false)} className="text-slate-400 hover:text-slate-600">
                   <X size={18} />
                 </button>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">¿Por qué la rechazas? (opcional)</label>
+                <label className="text-xs text-muted-foreground">¿Qué quieres cambiar o proponer? (opcional)</label>
                 <textarea
                   value={rejectionText}
                   onChange={(e) => setRejectionText(e.target.value)}
-                  placeholder="Ej: El precio está muy alto… o quiero agregar 2 kg de mango y 1 sandía"
+                  placeholder="Ej: El precio está muy alto… o cambia los 2 kg de mango por sandía, o ya no quiero el aguacate"
                   rows={3}
                   className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
                 />
@@ -343,9 +353,9 @@ export default function OrderTracker({ initialOrder }: Props) {
                 <button
                   onClick={rejectQuote}
                   disabled={actionLoading}
-                  className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold disabled:opacity-50"
+                  className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold disabled:opacity-50"
                 >
-                  {actionLoading ? 'Enviando…' : 'Rechazar'}
+                  {actionLoading ? 'Enviando…' : 'Enviar propuesta'}
                 </button>
               </div>
             </div>
@@ -456,10 +466,10 @@ export default function OrderTracker({ initialOrder }: Props) {
                 </p>
               </div>
             )}
-            {/* Complemento del pedido (mensaje de rechazo con extras) */}
+            {/* Propuesta de negociación */}
             {(order as { rejection_message?: string | null }).rejection_message && (
               <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-500">Complemento del pedido</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-500">Tu propuesta</p>
                 <p className="text-sm text-amber-800 whitespace-pre-wrap leading-relaxed">
                   {(order as { rejection_message?: string | null }).rejection_message}
                 </p>

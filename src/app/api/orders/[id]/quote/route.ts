@@ -15,6 +15,9 @@ export async function POST(
   const body = await req.json()
   const subtotal     = Number(body.subtotal)
   const delivery_fee = Number(body.delivery_fee ?? 0)
+  const quote_message = typeof body.quote_message === 'string' && body.quote_message.trim()
+    ? body.quote_message.trim()
+    : null
 
   if (isNaN(subtotal) || subtotal <= 0) {
     return NextResponse.json({ error: 'Precio inválido' }, { status: 400 })
@@ -50,7 +53,7 @@ export async function POST(
 
   const { error: updateError } = await supabase
     .from('orders')
-    .update({ subtotal, delivery_fee, total, status: 'quoted' })
+    .update({ subtotal, delivery_fee, total, status: 'quoted', quote_message })
     .eq('id', id)
 
   if (updateError) {

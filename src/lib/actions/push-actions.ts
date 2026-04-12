@@ -75,8 +75,8 @@ export async function notifyOrderStatusChanged(params: {
     case 'quote_rejected':
       if (restaurantId) {
         await notifyRestaurant(restaurantId, {
-          title: '❌ Cliente rechazó la cotización',
-          body:  rejectionMessage ? `#${id}: "${rejectionMessage}"` : `Pedido #${id} rechazado`,
+          title: '🤝 Cliente quiere negociar',
+          body:  rejectionMessage ? `#${id}: "${rejectionMessage}"` : `Pedido #${id} — enviaron propuesta`,
           url:   '/dashboard/orders',
           tag:   `quote-rejected-${orderId}`,
         })
