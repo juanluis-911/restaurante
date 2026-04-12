@@ -7,10 +7,11 @@ import { useState } from 'react'
 interface Props {
   label?: string
   className?: string
+  style?: React.CSSProperties
   onInstalled?: () => void
 }
 
-export default function InstallButton({ label = 'Instalar app', className = '', onInstalled }: Props) {
+export default function InstallButton({ label = 'Instalar app', className = '', style, onInstalled }: Props) {
   const { canInstall, isInstalled, isIOS, install } = usePWAInstall()
   const [showSteps, setShowSteps] = useState(false)
   const [installing, setInstalling] = useState(false)
@@ -33,6 +34,7 @@ export default function InstallButton({ label = 'Instalar app', className = '', 
       <button
         onClick={handleClick}
         disabled={installing}
+        style={style}
         className={`flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl font-bold text-base active:scale-95 transition-transform disabled:opacity-70 ${className}`}
       >
         {installing ? (

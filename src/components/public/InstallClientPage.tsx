@@ -72,7 +72,7 @@ export default function InstallClientPage({ slug, restaurantName, primaryColor, 
           <InstallButton
             label={`Instalar app`}
             className="text-white shadow-lg"
-            // El color del restaurante via style inline en el wrapper
+            style={{ backgroundColor: primaryColor }}
           />
 
           <Link href={`/${slug}`} className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl border-2 border-slate-200 bg-white font-semibold text-slate-700 text-sm">
