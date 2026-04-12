@@ -17,7 +17,7 @@ const ROLES = [
   {
     value: 'restaurant_owner' as Role,
     icon: UtensilsCrossed,
-    title: 'Restaurante',
+    title: 'Negocio',
     description: 'Gestiona tu negocio y pedidos',
   },
   {

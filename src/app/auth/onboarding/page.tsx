@@ -26,13 +26,29 @@ function slugify(text: string) {
     .replace(/^-+|-+$/g, '')
 }
 
+const BUSINESS_TYPES = [
+  {
+    value: 'restaurant',
+    emoji: '🍽️',
+    label: 'Restaurante / Taquería / Fonda',
+    description: 'Menú con categorías y productos. Precio fijo por ítem.',
+  },
+  {
+    value: 'store',
+    emoji: '🛒',
+    label: 'Tienda / Abarrotes / Frutería',
+    description: 'Paquetes y pedidos libres. Precio por cotización.',
+  },
+]
+
 export default function OnboardingPage() {
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
   const [form, setForm] = useState({
+    business_type: '',
     name: '',
     slug: '',
     phone: '',
@@ -73,7 +89,7 @@ export default function OnboardingPage() {
         return
       }
 
-      // Crear restaurante
+      // Crear negocio
       const { data: restaurant, error: restError } = await supabase
         .from('restaurants')
         .insert({
@@ -83,6 +99,7 @@ export default function OnboardingPage() {
           phone: form.phone,
           address: form.address,
           timezone: form.timezone,
+          business_type: form.business_type,
         })
         .select()
         .single()
@@ -100,7 +117,7 @@ export default function OnboardingPage() {
 
       await supabase.from('restaurant_hours').insert(hours)
 
-      toast.success('¡Restaurante creado exitosamente!')
+      toast.success('¡Negocio creado exitosamente!')
       router.push('/dashboard')
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Error al crear el restaurante'
@@ -115,16 +132,16 @@ export default function OnboardingPage() {
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 text-4xl">🎉</div>
-          <CardTitle className="text-2xl">Configura tu restaurante</CardTitle>
+          <CardTitle className="text-2xl">Configura tu negocio</CardTitle>
           <CardDescription>
             Solo toma un minuto. Puedes cambiar todo esto después en Configuración.
           </CardDescription>
           {/* Indicador de pasos */}
           <div className="flex justify-center gap-2 pt-2">
-            {[1, 2].map((s) => (
+            {[0, 1, 2].map((s) => (
               <div
                 key={s}
-                className={`h-1.5 w-12 rounded-full transition-colors ${
+                className={`h-1.5 w-10 rounded-full transition-colors ${
                   s <= step ? 'bg-primary' : 'bg-muted'
                 }`}
               />
@@ -133,14 +150,44 @@ export default function OnboardingPage() {
         </CardHeader>
 
         <CardContent>
+          {/* Paso 0: Tipo de negocio */}
+          {step === 0 && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                ¿Qué tipo de negocio tienes?
+              </p>
+              {BUSINESS_TYPES.map((bt) => (
+                <button
+                  key={bt.value}
+                  type="button"
+                  onClick={() => {
+                    setForm((p) => ({ ...p, business_type: bt.value }))
+                    setStep(1)
+                  }}
+                  className={`w-full text-left flex items-start gap-4 p-4 rounded-xl border-2 transition-all hover:border-primary hover:bg-primary/5 ${
+                    form.business_type === bt.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border'
+                  }`}
+                >
+                  <span className="text-3xl">{bt.emoji}</span>
+                  <div>
+                    <div className="font-semibold text-sm">{bt.label}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{bt.description}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
           <form onSubmit={step === 1 ? (e) => { e.preventDefault(); setStep(2) } : handleSubmit}>
             {step === 1 && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nombre del restaurante *</Label>
+                  <Label htmlFor="name">Nombre del negocio *</Label>
                   <Input
                     id="name"
-                    placeholder="Ej: Tacos El Güero"
+                    placeholder={form.business_type === 'store' ? 'Ej: Frutería La Esperanza' : 'Ej: Tacos El Güero'}
                     value={form.name}
                     onChange={(e) => handleNameChange(e.target.value)}
                     required
@@ -176,9 +223,14 @@ export default function OnboardingPage() {
                     ))}
                   </select>
                 </div>
-                <Button type="submit" className="w-full" disabled={!form.name || !form.slug}>
-                  Continuar →
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(0)}>
+                    ← Atrás
+                  </Button>
+                  <Button type="submit" className="flex-1" disabled={!form.name || !form.slug}>
+                    Continuar →
+                  </Button>
+                </div>
               </div>
             )}
 

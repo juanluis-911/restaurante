@@ -2,7 +2,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 import type { NextRequest } from 'next/server'
 import type { Database } from '@/types/database'
-import { notifyNewOrder } from '@/lib/actions/push-actions'
+import { notifyNewOrder, notifyOrderStatusChanged } from '@/lib/actions/push-actions'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -33,6 +33,42 @@ export async function GET(request: NextRequest) {
     const meta = session.metadata ?? {}
     const supabase = adminClient()
 
+    // ── Flujo tienda: cotización pagada (order ya existe) ─────
+    if (meta.existing_order_id) {
+      const orderId = meta.existing_order_id
+
+      // Idempotencia: si ya tiene stripe_session_id, ya fue procesado
+      const { data: alreadyDone } = await supabase
+        .from('orders')
+        .select('id, status')
+        .eq('id', orderId)
+        .single()
+
+      if (alreadyDone && alreadyDone.status !== 'quoted') {
+        return Response.redirect(`${baseUrl}/${slug}/order/${orderId}?paid=1`)
+      }
+
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ status: 'accepted', stripe_session_id: sessionId, updated_at: new Date().toISOString() })
+        .eq('id', orderId)
+
+      if (updateError) {
+        console.error('Error updating store order after payment:', updateError)
+        return Response.redirect(`${baseUrl}/${slug}?payment_error=1`)
+      }
+
+      notifyOrderStatusChanged({
+        orderId,
+        restaurantId: meta.restaurant_id,
+        newStatus: 'accepted',
+        orderTotal: session.amount_total ? session.amount_total / 100 : 0,
+      }).catch(() => {/* silencioso */})
+
+      return Response.redirect(`${baseUrl}/${slug}/order/${orderId}?paid=1`)
+    }
+
+    // ── Flujo restaurante: crear orden nueva ──────────────────
     // Verificar que la orden no fue ya creada (idempotencia)
     const { data: existing } = await supabase
       .from('orders')

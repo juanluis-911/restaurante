@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import { isRestaurantOpen } from '@/lib/utils/helpers'
 import StorefrontClient from '@/components/public/StorefrontClient'
 
+export const dynamic = 'force-dynamic'
+
 interface Props {
   params: Promise<{ slug: string }>
 }
@@ -70,6 +72,7 @@ export default async function StorefrontPage({ params }: Props) {
     <StorefrontClient
       restaurant={restaurant}
       isOpen={isOpen}
+      isStore={restaurant.business_type === 'store'}
       menus={menus ?? []}
       categories={categories ?? []}
       products={products ?? []}

@@ -25,6 +25,7 @@ type Discount   = Database['public']['Tables']['discounts']['Row']
 interface Props {
   restaurant: Restaurant
   isOpen: boolean
+  isStore: boolean
   menus: Menu[]
   categories: Category[]
   products: Product[]
@@ -34,7 +35,7 @@ interface Props {
 }
 
 export default function StorefrontClient({
-  restaurant, isOpen, menus, categories, products, combos, discounts, isLoggedIn,
+  restaurant, isOpen, isStore, menus, categories, products, combos, discounts, isLoggedIn,
 }: Props) {
   const [activeMenuId,  setActiveMenuId]  = useState(menus[0]?.id ?? null)
   const [cartOpen,      setCartOpen]      = useState(false)
@@ -44,7 +45,7 @@ export default function StorefrontClient({
   const [activeCatId,   setActiveCatId]   = useState<string | null>(null)
   const catRefs = useRef<Record<string, HTMLElement | null>>({})
 
-  const hasStripe      = restaurant.stripe_account_status === 'active' && !!restaurant.stripe_account_id && (restaurant.card_enabled ?? true)
+  const hasStripe      =restaurant.stripe_account_status === 'active' && !!restaurant.stripe_account_id && (restaurant.card_enabled ?? true)
   const hasCash        = restaurant.cash_enabled ?? true
   const headerImageUrl = (restaurant as { header_image_url?: string | null }).header_image_url
   const primaryColor   = restaurant.primary_color
@@ -52,7 +53,7 @@ export default function StorefrontClient({
   const [form, setForm] = useState({
     customer_name: '', customer_phone: '', customer_email: '',
     order_type: 'pickup' as 'dine_in' | 'pickup' | 'delivery',
-    notes: '', coupon_code: '',
+    notes: '', coupon_code: '', order_text: '',
     delivery_street: '', delivery_neighborhood: '', delivery_city: '', delivery_references: '',
   })
   const [couponDiscount,   setCouponDiscount]   = useState<Discount | null>(null)
@@ -151,7 +152,11 @@ export default function StorefrontClient({
 
   function validateCheckoutForm() {
     if (!form.customer_name.trim()) { toast.error('Ingresa tu nombre'); return false }
-    if (cart.isEmpty) { toast.error('El carrito está vacío'); return false }
+    if (isStore) {
+      if (cart.isEmpty && !form.order_text.trim()) { toast.error('Agrega paquetes o escribe tu pedido'); return false }
+    } else {
+      if (cart.isEmpty) { toast.error('El carrito está vacío'); return false }
+    }
     if (form.order_type === 'delivery') {
       if (!form.delivery_street.trim()) { toast.error('Ingresa tu calle y número'); return false }
       if (!form.delivery_city.trim()) { toast.error('Ingresa tu ciudad'); return false }
@@ -259,6 +264,56 @@ export default function StorefrontClient({
     finally { setLoading(false) }
   }
 
+  // ── Pedido libre (tiendas) ────────────────────────────────
+  async function placeStoreOrder() {
+    if (!validateCheckoutForm()) return
+    setLoading(true)
+    try {
+      const items = cart.items.map((i) => ({
+        ...(i.type === 'product' ? { product_id: i.id } : { combo_id: i.id }),
+        name: i.name, quantity: i.quantity,
+        unit_price: i.price,
+        subtotal: i.price * i.quantity,
+        discount_amount: 0,
+      }))
+      const { data: order, error } = await supabase
+        .from('orders')
+        .insert({
+          restaurant_id:  restaurant.id, source: 'online',
+          order_type:     form.order_type,
+          customer_name:  form.customer_name,
+          customer_phone: form.customer_phone || null,
+          customer_email: form.customer_email || null,
+          order_text:     form.order_text || null,
+          notes:          form.notes || null,
+          delivery_address: form.order_type === 'delivery' ? {
+            street:       form.delivery_street.trim(),
+            neighborhood: form.delivery_neighborhood.trim() || undefined,
+            city:         form.delivery_city.trim(),
+            references:   form.delivery_references.trim() || undefined,
+          } : null,
+          items, subtotal: 0, discount_amount: 0,
+          delivery_fee: 0, total: 0, status: 'received',
+        })
+        .select().single()
+      if (error) throw error
+
+      notifyNewOrder({
+        restaurantId: restaurant.id,
+        orderId:      order.id,
+        total:        0,
+        isPaid:       false,
+        shortId:      order.id.slice(-5).toUpperCase(),
+      }).catch(() => {/* silencioso */})
+
+      cart.clearCart()
+      setCheckoutOpen(false)
+      setCartOpen(false)
+      window.location.href = `/${restaurant.slug}/order/${order.id}`
+    } catch { toast.error('Error al enviar el pedido') }
+    finally { setLoading(false) }
+  }
+
   // ── Agregar al carrito (requiere login) ───────────────────
   function addToCart(item: Parameters<typeof cart.addItem>[0]) {
     if (!isLoggedIn) { setLoginPrompt(true); return }
@@ -271,11 +326,23 @@ export default function StorefrontClient({
     catRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  const freeOrderRef = useRef<HTMLElement | null>(null)
+
   const menuCategories = categories.filter((c) => c.menu_id === activeMenuId)
   const allCatIds      = [
+    ...(isStore ? ['__free_order__'] : []),
     ...menuCategories.map((c) => c.id),
     ...(combos.length > 0 ? ['__combos__'] : []),
   ]
+
+  function scrollToSection(id: string) {
+    if (id === '__free_order__') {
+      freeOrderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      setActiveCatId('__free_order__')
+    } else {
+      scrollToCategory(id)
+    }
+  }
 
   // ── UI ─────────────────────────────────────────────────────
   return (
@@ -378,6 +445,15 @@ export default function StorefrontClient({
         {allCatIds.length > 1 && (
           <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
             <div className="max-w-3xl mx-auto px-4 flex gap-1 overflow-x-auto py-2 scrollbar-hide">
+              {isStore && (
+                <button
+                  onClick={() => scrollToSection('__free_order__')}
+                  className={`px-3 py-1 rounded-full text-xs whitespace-nowrap font-medium transition-colors ${activeCatId === '__free_order__' ? 'text-white' : 'text-slate-500 bg-slate-100 hover:bg-slate-200'}`}
+                  style={activeCatId === '__free_order__' ? { backgroundColor: primaryColor } : {}}
+                >
+                  ✍️ Tu pedido
+                </button>
+              )}
               {menuCategories.map((cat) => (
                 <button
                   key={cat.id}
@@ -394,7 +470,7 @@ export default function StorefrontClient({
                   className={`px-3 py-1 rounded-full text-xs whitespace-nowrap font-medium transition-colors ${activeCatId === '__combos__' ? 'text-white' : 'text-slate-500 bg-slate-100 hover:bg-slate-200'}`}
                   style={activeCatId === '__combos__' ? { backgroundColor: primaryColor } : {}}
                 >
-                  Combos
+                  {isStore ? 'Paquetes' : 'Combos'}
                 </button>
               )}
             </div>
@@ -410,9 +486,75 @@ export default function StorefrontClient({
           <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5">
             <Clock size={16} className="text-amber-500 shrink-0" />
             <p className="text-sm text-amber-800">
-              El restaurante está cerrado en este momento. Puedes explorar el menú pero no realizar pedidos.
+              {isStore
+                ? 'La tienda está cerrada en este momento. Puedes explorar los paquetes pero no realizar pedidos.'
+                : 'El restaurante está cerrado en este momento. Puedes explorar el menú pero no realizar pedidos.'}
             </p>
           </div>
+        )}
+
+        {/* ── Sección "Haz tu pedido" (solo tiendas) ── */}
+        {isStore && (
+          <section ref={(el) => { freeOrderRef.current = el }} className="mb-8 scroll-mt-16">
+            <div
+              className="relative rounded-3xl overflow-hidden p-6"
+              style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}cc 100%)` }}
+            >
+              {/* Decoración de fondo */}
+              <div className="pointer-events-none absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/10" />
+              <div className="pointer-events-none absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-white/10" />
+              <div className="pointer-events-none absolute top-1/2 right-6 -translate-y-1/2 text-[80px] opacity-10 select-none leading-none">
+                🛍
+              </div>
+
+              <div className="relative space-y-4">
+                {/* Encabezado */}
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl">
+                    ✍️
+                  </div>
+                  <div>
+                    <h2 className="text-white font-extrabold text-xl leading-tight">
+                      Haz tu pedido aquí
+                    </h2>
+                    <p className="text-white/75 text-sm mt-0.5">
+                      Escribe lo que necesitas y te enviamos una cotización
+                    </p>
+                  </div>
+                </div>
+
+                {/* Textarea */}
+                <textarea
+                  placeholder={"Ej: 3 kg de plátano maduro, 2 kg de tomate, 1 caja de huevo… ¡Lo que sea!"}
+                  value={form.order_text}
+                  onChange={(e) => setForm((p) => ({ ...p, order_text: e.target.value }))}
+                  rows={4}
+                  disabled={!isOpen}
+                  className="w-full rounded-2xl bg-white/15 backdrop-blur-sm text-white placeholder:text-white/50 border border-white/25 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-white/40 resize-none disabled:opacity-60"
+                />
+
+                {/* Botón */}
+                <button
+                  onClick={() => {
+                    if (!isLoggedIn) { setLoginPrompt(true); return }
+                    setCheckoutOpen(true)
+                  }}
+                  disabled={!isOpen || (!form.order_text.trim() && cart.isEmpty)}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white font-bold text-sm shadow-lg transition-all hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  style={{ color: primaryColor }}
+                >
+                  Continuar con mi pedido <ChevronRight size={15} />
+                </button>
+
+                {/* Hint */}
+                <p className="text-white/55 text-xs text-center -mt-1">
+                  {isOpen
+                    ? 'También puedes agregar paquetes de abajo 👇'
+                    : 'La tienda está cerrada en este momento'}
+                </p>
+              </div>
+            </div>
+          </section>
         )}
 
         {/* ── Categorías + productos ── */}
@@ -537,8 +679,8 @@ export default function StorefrontClient({
           >
             <h2 className="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
               <span className="h-px flex-1 bg-slate-200" style={{ maxWidth: 16, minWidth: 16 }} />
-              Combos
-              <Badge variant="secondary" className="text-[10px] font-bold">Ahorra más</Badge>
+              {isStore ? 'Paquetes' : 'Combos'}
+              <Badge variant="secondary" className="text-[10px] font-bold">{isStore ? 'Precio especial' : 'Ahorra más'}</Badge>
               <span className="h-px flex-1 bg-slate-200" />
             </h2>
 
@@ -767,7 +909,7 @@ export default function StorefrontClient({
             <div className="space-y-1.5">
               <Label className="text-xs">Tipo de pedido</Label>
               <div className="grid grid-cols-3 gap-2">
-                {(['pickup', 'dine_in', ...(restaurant.delivery_enabled ? ['delivery' as const] : [])] as const).map((t) => (
+                {(['pickup', ...(!isStore ? ['dine_in' as const] : []), ...(restaurant.delivery_enabled ? ['delivery' as const] : [])] as const).map((t) => (
                   <button
                     key={t}
                     onClick={() => setForm((p) => ({ ...p, order_type: t }))}
@@ -799,96 +941,131 @@ export default function StorefrontClient({
               </div>
             )}
 
+            {/* Pedido libre (solo tiendas) */}
+            {isStore && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  ✍️ Tu pedido {cart.isEmpty ? <span className="text-red-500">*</span> : <span className="text-muted-foreground font-normal">(opcional si elegiste paquetes)</span>}
+                </Label>
+                <textarea
+                  placeholder="Ej: 3 kg de plátano maduros, 2 kg de tomate bola, 1 cartón de huevo…"
+                  value={form.order_text}
+                  onChange={(e) => setForm((p) => ({ ...p, order_text: e.target.value }))}
+                  rows={3}
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Recibirás una cotización con precio antes de pagar.
+                </p>
+              </div>
+            )}
+
             {/* Notas */}
-            <div className="space-y-1.5">
-              <Label className="text-xs">Notas del pedido</Label>
-              <Input placeholder="Sin cebolla, extra salsa..." value={form.notes}
-                onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
-            </div>
+            {!isStore && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Notas del pedido</Label>
+                <Input placeholder="Sin cebolla, extra salsa..." value={form.notes}
+                  onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
+              </div>
+            )}
 
-            {/* Cupón */}
-            <div className="space-y-1.5">
-              <Label className="text-xs flex items-center gap-1"><Ticket size={12} /> Cupón de descuento</Label>
-              {couponDiscount ? (
-                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
-                  <div>
-                    <p className="text-sm font-bold text-green-700">{form.coupon_code.toUpperCase()}</p>
-                    <p className="text-xs text-green-600">
-                      {couponDiscount.type === 'percentage'
-                        ? `${couponDiscount.value}% de descuento`
-                        : `${formatCurrency(Number(couponDiscount.value))} de descuento`}
-                    </p>
+            {/* Cupón (solo restaurantes) */}
+            {!isStore && (
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1"><Ticket size={12} /> Cupón de descuento</Label>
+                {couponDiscount ? (
+                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
+                    <div>
+                      <p className="text-sm font-bold text-green-700">{form.coupon_code.toUpperCase()}</p>
+                      <p className="text-xs text-green-600">
+                        {couponDiscount.type === 'percentage'
+                          ? `${couponDiscount.value}% de descuento`
+                          : `${formatCurrency(Number(couponDiscount.value))} de descuento`}
+                      </p>
+                    </div>
+                    <button onClick={removeCoupon} className="text-green-600 hover:text-green-800"><X size={15} /></button>
                   </div>
-                  <button onClick={removeCoupon} className="text-green-600 hover:text-green-800"><X size={15} /></button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <Input placeholder="CODIGO123" value={form.coupon_code}
-                    onChange={(e) => setForm((p) => ({ ...p, coupon_code: e.target.value.toUpperCase() }))}
-                    className="font-mono uppercase" />
-                  <Button variant="outline" onClick={validateCoupon}
-                    disabled={couponValidating || !form.coupon_code.trim()}>
-                    {couponValidating ? '...' : 'Aplicar'}
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Resumen de totales */}
-            <div className="rounded-xl border bg-slate-50 p-3 space-y-1.5">
-              <div className="flex justify-between text-sm text-slate-500">
-                <span>Subtotal</span><span>{formatCurrency(subtotalOriginal)}</span>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input placeholder="CODIGO123" value={form.coupon_code}
+                      onChange={(e) => setForm((p) => ({ ...p, coupon_code: e.target.value.toUpperCase() }))}
+                      className="font-mono uppercase" />
+                    <Button variant="outline" onClick={validateCoupon}
+                      disabled={couponValidating || !form.coupon_code.trim()}>
+                      {couponValidating ? '...' : 'Aplicar'}
+                    </Button>
+                  </div>
+                )}
               </div>
-              {autoDiscount > 0 && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span>Descuento automático</span><span>−{formatCurrency(autoDiscount)}</span>
-                </div>
-              )}
-              {couponAmount > 0 && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span>Cupón {form.coupon_code.toUpperCase()}</span><span>−{formatCurrency(couponAmount)}</span>
-                </div>
-              )}
-              {form.order_type === 'delivery' && Number(restaurant.delivery_fee) > 0 && (
+            )}
+
+            {/* Resumen de totales (solo restaurantes) */}
+            {!isStore && (
+              <div className="rounded-xl border bg-slate-50 p-3 space-y-1.5">
                 <div className="flex justify-between text-sm text-slate-500">
-                  <span>Costo de envío</span><span>{formatCurrency(Number(restaurant.delivery_fee))}</span>
+                  <span>Subtotal</span><span>{formatCurrency(subtotalOriginal)}</span>
                 </div>
-              )}
-              <div className="flex justify-between font-bold text-base pt-1.5 border-t">
-                <span>Total</span><span style={{ color: primaryColor }}>{formatCurrency(orderTotal)}</span>
+                {autoDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Descuento automático</span><span>−{formatCurrency(autoDiscount)}</span>
+                  </div>
+                )}
+                {couponAmount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Cupón {form.coupon_code.toUpperCase()}</span><span>−{formatCurrency(couponAmount)}</span>
+                  </div>
+                )}
+                {form.order_type === 'delivery' && Number(restaurant.delivery_fee) > 0 && (
+                  <div className="flex justify-between text-sm text-slate-500">
+                    <span>Costo de envío</span><span>{formatCurrency(Number(restaurant.delivery_fee))}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-base pt-1.5 border-t">
+                  <span>Total</span><span style={{ color: primaryColor }}>{formatCurrency(orderTotal)}</span>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Botones de pago */}
-            <div className="space-y-2">
-              {hasStripe && (
-                <button
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
-                  style={{ backgroundColor: '#635BFF' }}
-                  onClick={handleStripePayment}
-                  disabled={loading || !form.customer_name.trim()}
-                >
-                  <CreditCard size={15} />
-                  {loading ? 'Redirigiendo…' : `Pagar con tarjeta · ${formatCurrency(orderTotal)}`}
-                </button>
-              )}
-              {hasCash && (
-                <button
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
-                  style={!hasStripe ? { backgroundColor: primaryColor, color: 'white' } : { border: '1.5px solid #e2e8f0', color: '#334155' }}
-                  onClick={placeOrder}
-                  disabled={loading || !form.customer_name.trim()}
-                >
-                  <Banknote size={15} />
-                  {loading ? 'Enviando…' : hasStripe ? 'Pagar al recibir' : `Hacer pedido · ${formatCurrency(orderTotal)}`}
-                </button>
-              )}
-            </div>
-
-            {hasStripe && (
-              <p className="text-xs text-muted-foreground text-center">
-                Pago seguro procesado por Stripe 🔒
-              </p>
+            {/* Botones de pago / envío */}
+            {isStore ? (
+              <button
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: primaryColor }}
+                onClick={placeStoreOrder}
+                disabled={loading || !form.customer_name.trim()}
+              >
+                {loading ? 'Enviando…' : '📦 Enviar pedido'}
+              </button>
+            ) : (
+              <div className="space-y-2">
+                {hasStripe && (
+                  <button
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: '#635BFF' }}
+                    onClick={handleStripePayment}
+                    disabled={loading || !form.customer_name.trim()}
+                  >
+                    <CreditCard size={15} />
+                    {loading ? 'Redirigiendo…' : `Pagar con tarjeta · ${formatCurrency(orderTotal)}`}
+                  </button>
+                )}
+                {hasCash && (
+                  <button
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={!hasStripe ? { backgroundColor: primaryColor, color: 'white' } : { border: '1.5px solid #e2e8f0', color: '#334155' }}
+                    onClick={placeOrder}
+                    disabled={loading || !form.customer_name.trim()}
+                  >
+                    <Banknote size={15} />
+                    {loading ? 'Enviando…' : hasStripe ? 'Pagar al recibir' : `Hacer pedido · ${formatCurrency(orderTotal)}`}
+                  </button>
+                )}
+                {hasStripe && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Pago seguro procesado por Stripe 🔒
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </DialogContent>

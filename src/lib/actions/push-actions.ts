@@ -31,30 +31,73 @@ export async function notifyNewOrder(params: {
 
 // ── Notificar a los interesados cuando cambia el estado de la orden ────────
 export async function notifyOrderStatusChanged(params: {
-  orderId:       string
-  newStatus:     string
-  orderType:     string
-  driverId:      string | null
-  restaurantSlug: string
-  shortId:       string
+  orderId:          string
+  newStatus:        string
+  // Params del flujo restaurante (opcionales para flujo tienda)
+  orderType?:       string
+  driverId?:        string | null
+  restaurantSlug?:  string
+  shortId?:         string
+  // Params del flujo tienda (cotización)
+  restaurantId?:    string
+  orderTotal?:      number
+  deliveryFee?:     number
+  rejectionMessage?: string
 }) {
-  const { orderId, newStatus, orderType, driverId, restaurantSlug, shortId } = params
+  const {
+    orderId, newStatus,
+    orderType, driverId, restaurantSlug, shortId,
+    restaurantId, orderTotal, deliveryFee, rejectionMessage,
+  } = params
   const isDelivery = orderType === 'delivery'
-  const trackUrl   = `/${restaurantSlug}/order/${orderId}`
+  const trackUrl   = restaurantSlug ? `/${restaurantSlug}/order/${orderId}` : `/order/${orderId}`
+  const id         = shortId ?? orderId.slice(-5).toUpperCase()
 
   switch (newStatus) {
 
-    case 'accepted':
+    // ── Flujo tienda ──────────────────────────────────────────
+    case 'quoted':
       await notifyOrderCustomer(orderId, {
-        title: '✅ Pedido aceptado',
-        body:  `El restaurante confirmó tu pedido #${shortId}`,
+        title: '💰 Tu pedido fue cotizado',
+        body:  orderTotal
+          ? `${fmt(orderTotal)}${deliveryFee ? ` (envío ${fmt(deliveryFee)})` : ''}. ¡Revísalo y acepta!`
+          : 'La tienda cotizó tu pedido. ¡Revísalo!',
         url:   trackUrl,
         tag:   `order-${orderId}`,
       })
+      break
+
+    case 'quote_rejected':
+      if (restaurantId) {
+        await notifyRestaurant(restaurantId, {
+          title: '❌ Cliente rechazó la cotización',
+          body:  rejectionMessage ? `#${id}: "${rejectionMessage}"` : `Pedido #${id} rechazado`,
+          url:   '/dashboard/orders',
+          tag:   `quote-rejected-${orderId}`,
+        })
+      }
+      break
+
+    // ── Flujo restaurante / común ─────────────────────────────
+    case 'accepted':
+      await notifyOrderCustomer(orderId, {
+        title: '✅ Pedido aceptado',
+        body:  `Tu pedido #${id} fue confirmado`,
+        url:   trackUrl,
+        tag:   `order-${orderId}`,
+      })
+      if (restaurantId) {
+        await notifyRestaurant(restaurantId, {
+          title: '✅ Cliente aceptó el pedido',
+          body:  `Pedido #${id}${orderTotal ? ` · ${fmt(orderTotal)}` : ''} — cliente pagó o confirmó`,
+          url:   '/dashboard/orders',
+          tag:   `accepted-${orderId}`,
+        })
+      }
       if (isDelivery) {
         await notifyAllDrivers({
           title: '🛵 Nueva entrega disponible',
-          body:  `Pedido #${shortId} listo para ser tomado`,
+          body:  `Pedido #${id} listo para ser tomado`,
           url:   '/driver',
           tag:   `driver-available-${orderId}`,
         })
@@ -64,7 +107,7 @@ export async function notifyOrderStatusChanged(params: {
     case 'preparing':
       await notifyOrderCustomer(orderId, {
         title: '👨‍🍳 Preparando tu pedido',
-        body:  `Están cocinando tu pedido #${shortId}`,
+        body:  `Están preparando tu pedido #${id}`,
         url:   trackUrl,
         tag:   `order-${orderId}`,
       })
@@ -80,7 +123,7 @@ export async function notifyOrderStatusChanged(params: {
       if (isDelivery && driverId) {
         await notifyAssignedDriver(driverId, {
           title: '🎉 Pedido listo para recoger',
-          body:  `Pedido #${shortId} — dirígete al restaurante`,
+          body:  `Pedido #${id} — dirígete al negocio`,
           url:   '/driver',
           tag:   `driver-ready-${orderId}`,
         })
@@ -90,7 +133,7 @@ export async function notifyOrderStatusChanged(params: {
     case 'on_the_way':
       await notifyOrderCustomer(orderId, {
         title: '🛵 Tu pedido va en camino',
-        body:  `El repartidor está en camino con tu pedido #${shortId}`,
+        body:  `El repartidor está en camino con tu pedido #${id}`,
         url:   trackUrl,
         tag:   `order-${orderId}`,
       })
@@ -108,14 +151,14 @@ export async function notifyOrderStatusChanged(params: {
     case 'cancelled':
       await notifyOrderCustomer(orderId, {
         title: '❌ Pedido cancelado',
-        body:  `Tu pedido #${shortId} fue cancelado`,
+        body:  `Tu pedido #${id} fue cancelado`,
         url:   trackUrl,
         tag:   `order-${orderId}`,
       })
       if (isDelivery && driverId) {
         await notifyAssignedDriver(driverId, {
           title: '❌ Pedido cancelado',
-          body:  `El pedido #${shortId} fue cancelado por el restaurante`,
+          body:  `El pedido #${id} fue cancelado`,
           url:   '/driver',
           tag:   `driver-cancelled-${orderId}`,
         })

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/helpers'
-import { Clock, MessageCircle, Bike, Car, Zap, User, ChevronRight, MapPin, Receipt, Bell } from 'lucide-react'
+import { Clock, MessageCircle, Bike, Car, Zap, User, ChevronRight, MapPin, Receipt, Bell, CreditCard, Banknote, X } from 'lucide-react'
 import type { Database } from '@/types/database'
 import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
 
@@ -11,8 +11,14 @@ type Order = Database['public']['Tables']['orders']['Row'] & {
   restaurants: {
     name: string
     primary_color: string
+    slug: string
     logo_url?: string | null
     phone?: string | null
+    cash_enabled?: boolean
+    stripe_account_status?: string
+    stripe_account_id?: string | null
+    card_enabled?: boolean
+    business_type?: string | null
   } | null
   drivers?: {
     name: string
@@ -24,17 +30,19 @@ type Order = Database['public']['Tables']['orders']['Row'] & {
 const VEHICLE_ICON = { moto: Zap, carro: Car, bicicleta: Bike }
 const VEHICLE_LABEL = { moto: 'Moto', carro: 'Carro', bicicleta: 'Bicicleta' }
 
-const STATUS_STEPS = [
-  { key: 'received',   label: 'Recibido',        desc: 'El restaurante recibió tu pedido',     icon: '📥' },
-  { key: 'accepted',   label: 'Aceptado',         desc: 'Confirmaron tu pedido',                icon: '✅' },
-  { key: 'preparing',  label: 'En preparación',   desc: 'Están cocinando tu pedido',            icon: '👨‍🍳' },
-  { key: 'ready',      label: 'Listo',            desc: 'Tu pedido está listo para entregar',   icon: '🎉' },
-  { key: 'on_the_way', label: 'En camino',        desc: 'Tu pedido está en camino',             icon: '🛵' },
-  { key: 'delivered',  label: 'Entregado',        desc: '¡Tu pedido llegó! Buen provecho 🍽️',  icon: '🏠' },
-]
+function getStatusSteps(isStore: boolean) {
+  return [
+    { key: 'received',   label: 'Recibido',        desc: isStore ? 'La tienda recibió tu pedido'          : 'El restaurante recibió tu pedido',    icon: '📥' },
+    { key: 'accepted',   label: 'Aceptado',         desc: isStore ? 'Confirmaron tu pedido y lo preparan'  : 'Confirmaron tu pedido',               icon: '✅' },
+    { key: 'preparing',  label: 'En preparación',   desc: isStore ? 'Están preparando tu pedido'           : 'Están cocinando tu pedido',           icon: isStore ? '📦' : '👨‍🍳' },
+    { key: 'ready',      label: 'Listo',            desc: isStore ? 'Tu pedido está listo para entregar'   : 'Tu pedido está listo para entregar',  icon: '🎉' },
+    { key: 'on_the_way', label: 'En camino',        desc: 'Tu pedido está en camino',                                                               icon: '🛵' },
+    { key: 'delivered',  label: 'Entregado',        desc: isStore ? '¡Tu pedido llegó! 🛍️'                 : '¡Tu pedido llegó! Buen provecho 🍽️', icon: '🏠' },
+  ]
+}
 
 const STATUS_INDEX: Record<string, number> = Object.fromEntries(
-  STATUS_STEPS.map((s, i) => [s.key, i])
+  getStatusSteps(false).map((s, i) => [s.key, i])
 )
 
 interface Props {
@@ -42,7 +50,10 @@ interface Props {
 }
 
 export default function OrderTracker({ initialOrder }: Props) {
-  const [order, setOrder] = useState<Order>(initialOrder)
+  const [order, setOrder]             = useState<Order>(initialOrder)
+  const [rejectionOpen, setRejectionOpen] = useState(false)
+  const [rejectionText, setRejectionText] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
   const supabase = createClient()
   const restaurant = order.restaurants
 
@@ -67,11 +78,59 @@ export default function OrderTracker({ initialOrder }: Props) {
     return () => { supabase.removeChannel(channel) }
   }, [order.id, supabase])
 
-  const currentIdx    = order.status === 'cancelled' ? -1 : (STATUS_INDEX[order.status] ?? 0)
+  const isStore         = restaurant?.business_type === 'store'
+  const isQuoted        = order.status === 'quoted'
+  const isQuoteRejected = order.status === 'quote_rejected'
+  // Para el stepper: quoted/quote_rejected se muestran en "Recibido"
+  const stepperStatus   = (isQuoted || isQuoteRejected) ? 'received' : order.status
+  const currentIdx    = stepperStatus === 'cancelled' ? -1 : (STATUS_INDEX[stepperStatus] ?? 0)
+  const STATUS_STEPS  = getStatusSteps(isStore)
   const currentStep   = STATUS_STEPS[currentIdx]
   const items         = order.items as { name: string; quantity: number; unit_price?: number; subtotal?: number }[]
   const primaryColor  = restaurant?.primary_color ?? '#E53E3E'
   const isDelivered   = order.status === 'delivered'
+  const hasStripe     = restaurant?.stripe_account_status === 'active' && !!restaurant?.stripe_account_id && (restaurant?.card_enabled ?? true)
+  const hasCash       = restaurant?.cash_enabled ?? true
+
+  async function acceptCash() {
+    setActionLoading(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}/accept-quote`, { method: 'POST' })
+      if (!res.ok) throw new Error('Error al aceptar')
+      setOrder((p) => ({ ...p, status: 'accepted' }))
+    } catch { /* silencioso, realtime actualizará */ }
+    finally { setActionLoading(false) }
+  }
+
+  async function acceptStripe() {
+    setActionLoading(true)
+    try {
+      const res = await fetch('/api/stripe/store-quote-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: order.id, slug: restaurant?.slug }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) throw new Error(data.error ?? 'Error')
+      window.location.href = data.url
+    } catch { setActionLoading(false) }
+  }
+
+  async function rejectQuote() {
+    setActionLoading(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}/reject-quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: rejectionText }),
+      })
+      if (!res.ok) throw new Error('Error al rechazar')
+      setOrder((p) => ({ ...p, status: 'quote_rejected', rejection_message: rejectionText }))
+      setRejectionOpen(false)
+      setRejectionText('')
+    } catch { /* silencioso */ }
+    finally { setActionLoading(false) }
+  }
 
   if (order.status === 'cancelled') {
     return (
@@ -171,6 +230,126 @@ export default function OrderTracker({ initialOrder }: Props) {
 
       <div className="max-w-md mx-auto px-4 py-5 space-y-4">
 
+        {/* ── Cotización (solo tiendas) ───────────────────── */}
+        {isQuoted && (
+          <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <div className="px-5 py-4 border-b flex items-center gap-2" style={{ backgroundColor: primaryColor + '15' }}>
+              <span className="text-lg">💰</span>
+              <div>
+                <h2 className="text-sm font-semibold text-slate-800">Tu pedido fue cotizado</h2>
+                <p className="text-xs text-muted-foreground">Revisa el precio y acepta para continuar</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div className="rounded-xl border bg-slate-50 p-3 space-y-1.5">
+                {order.delivery_fee > 0 && (
+                  <>
+                    <div className="flex justify-between text-sm text-slate-500">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(order.total - order.delivery_fee)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-slate-500">
+                      <span>Envío</span>
+                      <span>{formatCurrency(order.delivery_fee)}</span>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between font-bold text-base pt-1 border-t">
+                  <span>Total</span>
+                  <span style={{ color: primaryColor }}>{formatCurrency(order.total)}</span>
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="space-y-2">
+                {hasStripe && (
+                  <button
+                    onClick={acceptStripe}
+                    disabled={actionLoading}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-50"
+                    style={{ backgroundColor: '#635BFF' }}
+                  >
+                    <CreditCard size={15} />
+                    {actionLoading ? 'Redirigiendo…' : `Pagar con tarjeta · ${formatCurrency(order.total)}`}
+                  </button>
+                )}
+                {hasCash && (
+                  <button
+                    onClick={acceptCash}
+                    disabled={actionLoading}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50"
+                    style={!hasStripe ? { backgroundColor: primaryColor, color: 'white' } : { border: '1.5px solid #e2e8f0', color: '#334155' }}
+                  >
+                    <Banknote size={15} />
+                    {actionLoading ? 'Aceptando…' : 'Pagar al recibir'}
+                  </button>
+                )}
+                <button
+                  onClick={() => setRejectionOpen(true)}
+                  disabled={actionLoading}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm text-red-600 font-medium hover:bg-red-50 transition-colors border border-red-100 disabled:opacity-50"
+                >
+                  Rechazar / Complementar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isQuoteRejected && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+            <span className="text-xl">⏳</span>
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Esperando nueva cotización</p>
+              <p className="text-xs text-amber-700 mt-0.5">Notificaste tu rechazo. La tienda revisará y enviará una nueva propuesta.</p>
+              {(order as { rejection_message?: string | null }).rejection_message && (
+                <p className="text-xs text-amber-600 mt-1.5 italic">
+                  Tu mensaje: &ldquo;{(order as { rejection_message?: string | null }).rejection_message}&rdquo;
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal rechazo ──────────────────────────────── */}
+        {rejectionOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-slate-800">Rechazar / Complementar</h3>
+                <button onClick={() => setRejectionOpen(false)} className="text-slate-400 hover:text-slate-600">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">¿Por qué la rechazas? (opcional)</label>
+                <textarea
+                  value={rejectionText}
+                  onChange={(e) => setRejectionText(e.target.value)}
+                  placeholder="Ej: El precio está muy alto… o quiero agregar 2 kg de mango y 1 sandía"
+                  rows={3}
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setRejectionOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl border text-sm font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={rejectQuote}
+                  disabled={actionLoading}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold disabled:opacity-50"
+                >
+                  {actionLoading ? 'Enviando…' : 'Rechazar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Progress stepper ───────────────────────────── */}
         <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
           <div className="px-5 py-4 border-b">
@@ -266,28 +445,56 @@ export default function OrderTracker({ initialOrder }: Props) {
             <h2 className="text-sm font-semibold text-slate-800">Resumen del pedido</h2>
           </div>
           <div className="px-5 py-4 space-y-2">
-            {items.map((item, i) => (
-              <div key={i} className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white text-[10px] font-bold"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    {item.quantity}
-                  </span>
-                  <span className="text-sm text-slate-700 truncate">{item.name}</span>
-                </div>
-                {(item.subtotal ?? item.unit_price) && (
-                  <span className="text-sm text-slate-500 shrink-0">
-                    {formatCurrency((item.subtotal ?? (item.unit_price! * item.quantity)))}
-                  </span>
-                )}
+            {/* Pedido libre (tiendas) */}
+            {(order as { order_text?: string | null }).order_text && (
+              <div className="rounded-xl bg-slate-50 border px-3 py-2.5 space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Tu pedido</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                  {(order as { order_text?: string | null }).order_text}
+                </p>
               </div>
-            ))}
+            )}
+            {/* Complemento del pedido (mensaje de rechazo con extras) */}
+            {(order as { rejection_message?: string | null }).rejection_message && (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-500">Complemento del pedido</p>
+                <p className="text-sm text-amber-800 whitespace-pre-wrap leading-relaxed">
+                  {(order as { rejection_message?: string | null }).rejection_message}
+                </p>
+              </div>
+            )}
+            {/* Paquetes seleccionados */}
+            {items.length > 0 && (
+              <>
+                {(order as { order_text?: string | null }).order_text && (
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 pt-1">Paquetes agregados</p>
+                )}
+                {items.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white text-[10px] font-bold"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        {item.quantity}
+                      </span>
+                      <span className="text-sm text-slate-700 truncate">{item.name}</span>
+                    </div>
+                    {(item.subtotal ?? item.unit_price) && (
+                      <span className="text-sm text-slate-500 shrink-0">
+                        {formatCurrency((item.subtotal ?? (item.unit_price! * item.quantity)))}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
           </div>
           <div className="px-5 py-3 bg-slate-50 border-t flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-800">Total</span>
-            <span className="text-base font-bold text-slate-900">{formatCurrency(Number(order.total))}</span>
+            <span className="text-base font-bold text-slate-900">
+              {Number(order.total) > 0 ? formatCurrency(Number(order.total)) : 'Por cotizar'}
+            </span>
           </div>
           {order.stripe_session_id && (
             <div className="px-5 py-2.5 border-t flex items-center gap-2 text-xs text-violet-700 bg-violet-50">

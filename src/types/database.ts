@@ -409,8 +409,10 @@ export type Database = {
           items: Json
           menu_id: string | null
           notes: string | null
+          order_text: string | null
           order_type: string
           pos_session_id: string | null
+          rejection_message: string | null
           restaurant_id: string
           source: string
           status: string
@@ -437,8 +439,10 @@ export type Database = {
           items?: Json
           menu_id?: string | null
           notes?: string | null
+          order_text?: string | null
           order_type: string
           pos_session_id?: string | null
+          rejection_message?: string | null
           restaurant_id: string
           source?: string
           status?: string
@@ -465,8 +469,10 @@ export type Database = {
           items?: Json
           menu_id?: string | null
           notes?: string | null
+          order_text?: string | null
           order_type?: string
           pos_session_id?: string | null
+          rejection_message?: string | null
           restaurant_id?: string
           source?: string
           status?: string
@@ -791,6 +797,7 @@ export type Database = {
         Row: {
           address: string | null
           billing_status: string
+          business_type: string
           card_enabled: boolean
           cash_enabled: boolean
           created_at: string
@@ -821,6 +828,7 @@ export type Database = {
         Insert: {
           address?: string | null
           billing_status?: string
+          business_type?: string
           card_enabled?: boolean
           cash_enabled?: boolean
           created_at?: string
@@ -851,6 +859,7 @@ export type Database = {
         Update: {
           address?: string | null
           billing_status?: string
+          business_type?: string
           card_enabled?: boolean
           cash_enabled?: boolean
           created_at?: string

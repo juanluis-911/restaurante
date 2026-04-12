@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { formatDistanceToNow, format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronRight, X, Bike, Car, Zap, Bell, BellOff } from 'lucide-react'
+import { ChevronRight, X, Bike, Car, Zap, Bell, BellOff, DollarSign } from 'lucide-react'
 import type { Database } from '@/types/database'
 import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
 import { notifyOrderStatusChanged } from '@/lib/actions/push-actions'
@@ -24,6 +24,17 @@ const COLUMNS: { key: OrderStatus; label: string; color: string; nextLabel: stri
   { key: 'preparing',  label: 'Cocinando',  color: 'border-t-orange-400',  nextLabel: 'Listo ✓' },
   { key: 'ready',      label: 'Listo',      color: 'border-t-green-500',   nextLabel: 'Terminado' },
   { key: 'on_the_way', label: 'En camino',  color: 'border-t-purple-400',  nextLabel: '' },
+]
+
+// Columnas para tiendas (flujo de cotización)
+const STORE_COLUMNS: { key: string; label: string; color: string }[] = [
+  { key: 'received',       label: 'Recibidos',   color: 'border-t-yellow-400' },
+  { key: 'quoted',         label: 'Cotizados',   color: 'border-t-blue-400'   },
+  { key: 'quote_rejected', label: 'Rechazados',  color: 'border-t-red-400'    },
+  { key: 'accepted',       label: 'Aceptados',   color: 'border-t-green-400'  },
+  { key: 'preparing',      label: 'Preparando',  color: 'border-t-orange-400' },
+  { key: 'ready',          label: 'Listo',       color: 'border-t-green-500'  },
+  { key: 'on_the_way',     label: 'En camino',   color: 'border-t-purple-400' },
 ]
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -46,13 +57,20 @@ interface Props {
   initialOrders:  Order[]
   restaurantId:   string
   restaurantSlug: string
+  businessType?:  string
 }
 
-export default function OrdersKanban({ initialOrders, restaurantId, restaurantSlug }: Props) {
+export default function OrdersKanban({ initialOrders, restaurantId, restaurantSlug, businessType }: Props) {
   const [orders,        setOrders]        = useState<Order[]>(initialOrders)
   const [history,       setHistory]       = useState<Order[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
   const [view,          setView]          = useState<'kanban' | 'history'>('kanban')
+  // Estado modal cotización
+  const [quoteOrder,    setQuoteOrder]    = useState<Order | null>(null)
+  const [quoteSubtotal, setQuoteSubtotal] = useState('')
+  const [quoteDelivery, setQuoteDelivery] = useState('')
+  const [quoteLoading,  setQuoteLoading]  = useState(false)
+  const isStore = businessType === 'store'
   const supabase = createClient()
 
   const { isSupported, isSubscribed, subscribe } = usePushNotifications({
@@ -154,6 +172,26 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
     }).catch(() => {/* silencioso */})
   }
 
+  async function submitQuote() {
+    if (!quoteOrder) return
+    const subtotal = parseFloat(quoteSubtotal)
+    if (isNaN(subtotal) || subtotal <= 0) { toast.error('Ingresa un precio válido'); return }
+    setQuoteLoading(true)
+    try {
+      const res = await fetch(`/api/orders/${quoteOrder.id}/quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subtotal, delivery_fee: parseFloat(quoteDelivery) || 0 }),
+      })
+      if (!res.ok) throw new Error('Error al cotizar')
+      toast.success('Cotización enviada al cliente ✓')
+      setQuoteOrder(null)
+      setQuoteSubtotal('')
+      setQuoteDelivery('')
+    } catch { toast.error('No se pudo enviar la cotización') }
+    finally { setQuoteLoading(false) }
+  }
+
   const totalActive = orders.length
 
   return (
@@ -200,7 +238,7 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
       </div>
 
       {/* ── Kanban ────────────────────────────────────────── */}
-      {view === 'kanban' && (
+      {view === 'kanban' && !isStore && (
         <div className="flex gap-3 overflow-x-auto pb-4">
           {COLUMNS.map(({ key, label, color, nextLabel }) => {
             const colOrders = orders.filter((o) => o.status === key)
@@ -327,6 +365,224 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── Kanban Tiendas ────────────────────────────────── */}
+      {view === 'kanban' && isStore && (
+        <div className="flex gap-3 overflow-x-auto pb-4">
+          {STORE_COLUMNS.map(({ key, label, color }) => {
+            const colOrders = orders.filter((o) => o.status === key)
+
+            return (
+              <div key={key} className="flex-shrink-0 w-64">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-sm">{label}</h3>
+                  {colOrders.length > 0 && (
+                    <Badge variant="secondary" className="text-xs">{colOrders.length}</Badge>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {colOrders.length === 0 && (
+                    <div className="border border-dashed rounded-lg p-5 text-center text-xs text-muted-foreground">
+                      Sin pedidos
+                    </div>
+                  )}
+
+                  {colOrders.map((order) => {
+                    const items = order.items as { name: string; quantity: number }[]
+                    const extOrder = order as typeof order & { order_text?: string | null; rejection_message?: string | null }
+
+                    return (
+                      <Card key={order.id} className={`border-t-2 ${color}`}>
+                        <CardHeader className="p-3 pb-1.5">
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="min-w-0">
+                              <span className="font-bold text-sm">#{order.id.slice(-5).toUpperCase()}</span>
+                              <p className="font-medium text-sm truncate">{order.customer_name}</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <Badge variant="outline" className="text-xs">
+                                {TYPE_LABEL[order.order_type]}
+                              </Badge>
+                              {order.stripe_session_id && (
+                                <Badge className="text-xs bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100">
+                                  💳 Pagado
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: es })}
+                          </p>
+                        </CardHeader>
+
+                        <CardContent className="p-3 pt-0 space-y-2">
+                          {/* Paquetes seleccionados */}
+                          {items.length > 0 && (
+                            <ul className="text-xs text-muted-foreground space-y-0.5 border-t pt-2">
+                              {items.map((item, i) => (
+                                <li key={i} className="flex gap-1">
+                                  <span className="font-medium text-foreground">{item.quantity}x</span>
+                                  <span className="truncate">{item.name}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+
+                          {/* Texto libre del pedido */}
+                          {extOrder.order_text && (
+                            <p className="text-xs bg-blue-50 text-blue-800 rounded px-2 py-1.5 leading-relaxed">
+                              📝 {extOrder.order_text}
+                            </p>
+                          )}
+
+                          {/* Mensaje de rechazo */}
+                          {key === 'quote_rejected' && extOrder.rejection_message && (
+                            <p className="text-xs bg-red-50 text-red-700 rounded px-2 py-1.5">
+                              ❌ &ldquo;{extOrder.rejection_message}&rdquo;
+                            </p>
+                          )}
+
+                          {/* Precio (cuando ya está cotizado) */}
+                          {Number(order.total) > 0 && (
+                            <p className="font-bold text-sm">{fmt(Number(order.total))}</p>
+                          )}
+
+                          {/* Acciones */}
+                          <div className="flex gap-1">
+                            {(key === 'received' || key === 'quote_rejected') && (
+                              <Button
+                                size="sm"
+                                className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                                onClick={() => {
+                                  setQuoteOrder(order)
+                                  setQuoteSubtotal('')
+                                  setQuoteDelivery('')
+                                }}
+                              >
+                                <DollarSign size={11} className="mr-1" />
+                                {key === 'quote_rejected' ? 'Nueva cotización' : 'Establecer precio'}
+                              </Button>
+                            )}
+                            {key === 'accepted' && (
+                              <Button
+                                size="sm"
+                                className="flex-1 h-7 text-xs"
+                                onClick={() => advanceStatus(order)}
+                              >
+                                Empezar <ChevronRight size={11} className="ml-1" />
+                              </Button>
+                            )}
+                            {key === 'preparing' && (
+                              <Button
+                                size="sm"
+                                className="flex-1 h-7 text-xs"
+                                onClick={() => advanceStatus(order)}
+                              >
+                                Listo ✓ <ChevronRight size={11} className="ml-1" />
+                              </Button>
+                            )}
+                            {key === 'ready' && (
+                              <Button
+                                size="sm"
+                                className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700"
+                                onClick={() => advanceStatus(order)}
+                              >
+                                {order.order_type === 'delivery' ? 'Entregar 🛵' : 'Terminado'} <ChevronRight size={11} className="ml-1" />
+                              </Button>
+                            )}
+                            {key === 'quoted' && (
+                              <div className="flex-1 flex items-center justify-center h-7 text-xs text-blue-600 font-medium bg-blue-50 rounded-md">
+                                ⏳ Esperando cliente
+                              </div>
+                            )}
+                            {key === 'on_the_way' && (
+                              <div className="flex-1 flex items-center justify-center h-7 text-xs text-purple-600 font-medium bg-purple-50 rounded-md">
+                                🛵 Con repartidor
+                              </div>
+                            )}
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                              onClick={() => cancelOrder(order)}
+                            >
+                              <X size={12} />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Modal cotización ─────────────────────────────── */}
+      {quoteOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-800">Establecer precio</h3>
+              <button onClick={() => setQuoteOrder(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Pedido #{quoteOrder.id.slice(-5).toUpperCase()} — {quoteOrder.customer_name}
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Precio del pedido ($) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Ej: 320"
+                  value={quoteSubtotal}
+                  onChange={(e) => setQuoteSubtotal(e.target.value)}
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Costo de envío ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Ej: 40 (dejar en 0 si no aplica)"
+                  value={quoteDelivery}
+                  onChange={(e) => setQuoteDelivery(e.target.value)}
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+              {quoteSubtotal && (
+                <div className="rounded-xl bg-slate-50 border px-3 py-2 flex justify-between text-sm font-semibold">
+                  <span>Total a cobrar</span>
+                  <span>{fmt((parseFloat(quoteSubtotal) || 0) + (parseFloat(quoteDelivery) || 0))}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setQuoteOrder(null)}
+                className="flex-1 py-2.5 rounded-xl border text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={submitQuote}
+                disabled={quoteLoading || !quoteSubtotal}
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-50"
+              >
+                {quoteLoading ? 'Enviando…' : 'Enviar cotización'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

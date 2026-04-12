@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import OrderTracker from '@/components/public/OrderTracker'
 
+
 interface Props {
   params: Promise<{ slug: string; id: string }>
 }
@@ -14,7 +15,7 @@ export default async function OrderTrackingPage({ params }: Props) {
   const sb = supabase as any
   const { data: order } = await sb
     .from('orders')
-    .select('*, restaurants(name, primary_color, logo_url, phone), drivers(name, whatsapp, vehicle_type)')
+    .select('*, restaurants(name, primary_color, slug, logo_url, phone, cash_enabled, card_enabled, stripe_account_status, stripe_account_id, business_type), drivers(name, whatsapp, vehicle_type)')
     .eq('id', id)
     .single()
 
