@@ -18,25 +18,24 @@ import {
   MoreHorizontal,
   Receipt,
   HelpCircle,
+  Package,
 } from 'lucide-react'
 import RestaurantSwitcher from '@/components/admin/RestaurantSwitcher'
 import type { RestaurantRow } from '@/lib/utils/get-active-restaurant'
 
-const NAV_ITEMS = [
-  { href: '/dashboard',           label: 'Inicio',        icon: LayoutDashboard },
-  { href: '/dashboard/orders',    label: 'Órdenes',       icon: ShoppingBag },
-  { href: '/dashboard/pos',       label: 'POS',           icon: CreditCard },
-  { href: '/dashboard/menus',     label: 'Menús',         icon: UtensilsCrossed },
-  { href: '/dashboard/discounts', label: 'Descuentos',    icon: Tag },
-  { href: '/dashboard/reports',   label: 'Reportes',      icon: BarChart3 },
-  { href: '/dashboard/billing',   label: 'Facturación',   icon: Receipt },
-  { href: '/dashboard/settings',  label: 'Configuración', icon: Settings },
-  { href: '/dashboard/ayuda',     label: 'Ayuda',         icon: HelpCircle },
-]
-
-// Primeros 4 en la barra inferior, el resto en "Más"
-const BOTTOM_NAV  = NAV_ITEMS.slice(0, 4)
-const DRAWER_EXTRA = NAV_ITEMS.slice(4)
+function getNavItems(isStore: boolean) {
+  return [
+    { href: '/dashboard',           label: 'Inicio',                              icon: LayoutDashboard },
+    { href: '/dashboard/orders',    label: 'Órdenes',                             icon: ShoppingBag },
+    { href: '/dashboard/pos',       label: 'POS',                                 icon: CreditCard },
+    { href: '/dashboard/menus',     label: isStore ? 'Paquetes' : 'Menús',        icon: isStore ? Package : UtensilsCrossed },
+    { href: '/dashboard/discounts', label: 'Descuentos',                          icon: Tag },
+    { href: '/dashboard/reports',   label: 'Reportes',                            icon: BarChart3 },
+    { href: '/dashboard/billing',   label: 'Facturación',                         icon: Receipt },
+    { href: '/dashboard/settings',  label: 'Configuración',                       icon: Settings },
+    { href: '/dashboard/ayuda',     label: 'Ayuda',                               icon: HelpCircle },
+  ]
+}
 
 interface Props {
   restaurant: RestaurantRow
@@ -46,6 +45,10 @@ interface Props {
 export default function DashboardSidebar({ restaurant, restaurants }: Props) {
   const pathname  = usePathname()
   const [open, setOpen] = useState(false)
+  const isStore   = restaurant.business_type === 'store'
+  const NAV_ITEMS = getNavItems(isStore)
+  const BOTTOM_NAV   = NAV_ITEMS.slice(0, 4)
+  const DRAWER_EXTRA = NAV_ITEMS.slice(4)
 
   function isActive(href: string) {
     return href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href)

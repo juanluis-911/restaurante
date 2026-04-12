@@ -16,7 +16,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, UtensilsCrossed } from 'lucide-react'
+import { Plus, Pencil, Trash2, UtensilsCrossed, Package } from 'lucide-react'
 import Link from 'next/link'
 
 interface Menu {
@@ -31,9 +31,10 @@ interface Menu {
 interface Props {
   initialMenus: Menu[]
   restaurantId: string
+  isStore?: boolean
 }
 
-export default function MenusList({ initialMenus, restaurantId }: Props) {
+export default function MenusList({ initialMenus, restaurantId, isStore = false }: Props) {
   const [menus, setMenus] = useState<Menu[]>(initialMenus)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Menu | null>(null)
@@ -123,12 +124,12 @@ export default function MenusList({ initialMenus, restaurantId }: Props) {
           <DialogTrigger>
             <Button onClick={openCreate}>
               <Plus size={16} className="mr-2" />
-              Nuevo menú
+              {isStore ? 'Nueva sección' : 'Nuevo menú'}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editing ? 'Editar menú' : 'Nuevo menú'}</DialogTitle>
+              <DialogTitle>{editing ? (isStore ? 'Editar sección' : 'Editar menú') : (isStore ? 'Nueva sección' : 'Nuevo menú')}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-2">
@@ -161,10 +162,15 @@ export default function MenusList({ initialMenus, restaurantId }: Props) {
       {menus.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <UtensilsCrossed size={32} className="mx-auto mb-3 text-muted-foreground/40" />
-            <p className="text-muted-foreground">Aún no tienes menús creados</p>
+            {isStore
+              ? <Package size={32} className="mx-auto mb-3 text-muted-foreground/40" />
+              : <UtensilsCrossed size={32} className="mx-auto mb-3 text-muted-foreground/40" />}
+            <p className="text-muted-foreground">
+              {isStore ? 'Aún no tienes secciones creadas' : 'Aún no tienes menús creados'}
+            </p>
             <Button className="mt-3" onClick={openCreate}>
-              <Plus size={16} className="mr-2" /> Crear primer menú
+              <Plus size={16} className="mr-2" />
+              {isStore ? 'Crear primera sección' : 'Crear primer menú'}
             </Button>
           </CardContent>
         </Card>
