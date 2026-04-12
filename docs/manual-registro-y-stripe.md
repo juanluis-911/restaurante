@@ -37,17 +37,28 @@ Ve a la página de inicio de sesión de la plataforma. Verás tres opciones de r
 
 ---
 
-## 2. Configurar tu restaurante
+## 2. Configurar tu negocio
 
-Después del registro, el sistema te lleva automáticamente al asistente de configuración. Este proceso tiene dos pasos.
+Después del registro, el sistema te lleva automáticamente al asistente de configuración. Este proceso tiene tres pasos.
+
+### Paso 0 — Tipo de negocio
+
+Selecciona el tipo que mejor describe tu operación:
+
+| Opción | Cuándo elegirla |
+|--------|-----------------|
+| **Restaurante** | Tienes un menú con precios fijos. Los clientes eligen platillos y pagan en el momento. |
+| **Tienda** | Tiendas de abarrotes, fruterías, minisupers, etc. Los clientes describen lo que quieren y tú cotizas el precio antes de confirmar el pedido. |
+
+> Esta configuración determina el flujo de pedidos. Se puede contactar a soporte si necesitas cambiarla después.
 
 ### Paso 1 — Información básica
 
 | Campo | Descripción |
 |-------|-------------|
-| **Nombre del restaurante** | El nombre que verán tus clientes. Requerido. |
-| **URL pública** | Identificador único en la plataforma (ej. `mi-restaurante`). Se genera automáticamente desde el nombre, pero puedes editarlo. Debe ser único. |
-| **Zona horaria** | Selecciona la zona horaria donde opera tu restaurante: Sonora, Ciudad de México, Tijuana, Monterrey o Cancún. |
+| **Nombre del negocio** | El nombre que verán tus clientes. Requerido. |
+| **URL pública** | Identificador único en la plataforma (ej. `mi-tienda`). Se genera automáticamente desde el nombre, pero puedes editarlo. Debe ser único. |
+| **Zona horaria** | Selecciona la zona horaria donde opera tu negocio: Sonora, Ciudad de México, Tijuana, Monterrey o Cancún. |
 
 ### Paso 2 — Detalles adicionales
 
@@ -69,19 +80,21 @@ Al completar el registro, el sistema configura de forma automática:
 
 Podrás ajustar los horarios desde tu panel de administración.
 
-### Tu menú público
+### Tu página pública
 
-Una vez registrado, tu menú estará disponible en:
+Una vez registrado, tu negocio estará disponible en:
 
 ```
-https://[dominio-de-la-plataforma]/[tu-url-publica]
+https://turieats.com/[tu-url-publica]
 ```
 
 ---
 
 ## 3. Conectar Stripe para recibir pagos
 
-Stripe es el procesador de pagos que permite a tus clientes pagar en línea con tarjeta. **Sin Stripe conectado, no podrás recibir pedidos en línea.**
+Stripe es el procesador de pagos que permite a tus clientes pagar en línea con tarjeta. **Sin Stripe conectado, no podrás recibir pagos en línea.**
+
+> **Tiendas:** Los pedidos llegan sin pago, el cliente paga después de que tú cotizas el precio. Aun así necesitas Stripe conectado para que los clientes puedan pagar con tarjeta al aceptar tu cotización.
 
 ### 3.1 ¿Por qué necesitas Stripe?
 
