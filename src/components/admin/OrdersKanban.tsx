@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { formatDistanceToNow, format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronRight, X, Bike, Car, Zap, Bell, BellOff, DollarSign, ShoppingBag, TrendingUp, Activity } from 'lucide-react'
+import { ChevronRight, X, Bike, Car, Zap, Bell, BellOff, DollarSign, ShoppingBag, TrendingUp, Activity, Phone, MessageCircle, MapPin, User } from 'lucide-react'
 import type { Database } from '@/types/database'
 import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
 import { notifyOrderStatusChanged } from '@/lib/actions/push-actions'
@@ -76,6 +76,7 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
   const [historyLoaded, setHistoryLoaded] = useState(false)
   const [view,          setView]          = useState<'kanban' | 'history'>('kanban')
   const [quoteOrder,    setQuoteOrder]    = useState<Order | null>(null)
+  const [detailOrder,   setDetailOrder]   = useState<Order | null>(null)
   const [quoteSubtotal, setQuoteSubtotal] = useState('')
   const [quoteDelivery, setQuoteDelivery] = useState('')
   const [quoteMessage,  setQuoteMessage]  = useState('')
@@ -428,20 +429,29 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
                       }`}>
                         <CardHeader className="p-3 pb-1.5">
                           <div className="flex items-start justify-between gap-1">
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <span className="font-bold text-sm">#{order.id.slice(-5).toUpperCase()}</span>
                               <p className="font-medium text-sm truncate">{order.customer_name}</p>
                             </div>
-                            <div className="flex flex-col items-end gap-1 shrink-0">
-                              <Badge variant="outline" className="text-xs">{TYPE_LABEL[order.order_type]}</Badge>
-                              <Badge variant="secondary" className="text-xs">
-                                {order.source === 'pos' ? 'POS' : 'Online'}
-                              </Badge>
-                              {order.stripe_session_id && (
-                                <Badge className="text-xs bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100">
-                                  💳 Pagado
+                            <div className="flex items-start gap-1.5 shrink-0">
+                              <div className="flex flex-col items-end gap-1">
+                                <Badge variant="outline" className="text-xs">{TYPE_LABEL[order.order_type]}</Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {order.source === 'pos' ? 'POS' : 'Online'}
                                 </Badge>
-                              )}
+                                {order.stripe_session_id && (
+                                  <Badge className="text-xs bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100">
+                                    💳 Pagado
+                                  </Badge>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => setDetailOrder(order)}
+                                className="mt-0.5 w-6 h-6 rounded-full bg-slate-100 hover:bg-blue-100 hover:text-blue-600 flex items-center justify-center text-slate-400 transition-colors"
+                                title="Ver datos del cliente"
+                              >
+                                <User size={11} />
+                              </button>
                             </div>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
@@ -540,17 +550,26 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
                       }`}>
                         <CardHeader className="p-3 pb-1.5">
                           <div className="flex items-start justify-between gap-1">
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <span className="font-bold text-sm">#{order.id.slice(-5).toUpperCase()}</span>
                               <p className="font-medium text-sm truncate">{order.customer_name}</p>
                             </div>
-                            <div className="flex flex-col items-end gap-1 shrink-0">
-                              <Badge variant="outline" className="text-xs">{TYPE_LABEL[order.order_type]}</Badge>
-                              {order.stripe_session_id && (
-                                <Badge className="text-xs bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100">
-                                  💳 Pagado
-                                </Badge>
-                              )}
+                            <div className="flex items-start gap-1.5 shrink-0">
+                              <div className="flex flex-col items-end gap-1">
+                                <Badge variant="outline" className="text-xs">{TYPE_LABEL[order.order_type]}</Badge>
+                                {order.stripe_session_id && (
+                                  <Badge className="text-xs bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100">
+                                    💳 Pagado
+                                  </Badge>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => setDetailOrder(order)}
+                                className="mt-0.5 w-6 h-6 rounded-full bg-slate-100 hover:bg-blue-100 hover:text-blue-600 flex items-center justify-center text-slate-400 transition-colors"
+                                title="Ver datos del cliente"
+                              >
+                                <User size={11} />
+                              </button>
                             </div>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
@@ -645,6 +664,133 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
           })}
         </div>
       )}
+
+      {/* ── Modal detalle cliente ─────────────────────────────── */}
+      {detailOrder && (() => {
+        const o = detailOrder
+        const addr = o.delivery_address as { street?: string; neighborhood?: string; city?: string; references?: string } | null
+        const phone = o.customer_phone?.replace(/\D/g, '') ?? null
+        const waLink = phone ? `https://wa.me/${phone}` : null
+        const telLink = phone ? `tel:+${phone}` : null
+        const items = o.items as { name: string; quantity: number }[]
+        const extO = o as typeof o & { order_text?: string | null }
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50" onClick={() => setDetailOrder(null)}>
+            <div
+              className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b">
+                <div>
+                  <p className="text-xs text-muted-foreground font-mono">#{o.id.slice(-5).toUpperCase()}</p>
+                  <h3 className="font-bold text-slate-800 text-base leading-tight">{o.customer_name}</h3>
+                </div>
+                <button onClick={() => setDetailOrder(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="px-5 py-4 space-y-4">
+                {/* Contacto */}
+                {(phone || o.customer_email) && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Contacto</p>
+                    {phone && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                          <Phone size={12} className="text-slate-500" />
+                        </div>
+                        <span className="text-sm text-slate-700 flex-1">{o.customer_phone}</span>
+                        <div className="flex gap-1.5">
+                          {telLink && (
+                            <a
+                              href={telLink}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 transition-colors"
+                            >
+                              <Phone size={11} /> Llamar
+                            </a>
+                          )}
+                          {waLink && (
+                            <a
+                              href={waLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-100 hover:bg-green-200 text-xs font-medium text-green-700 transition-colors"
+                            >
+                              <MessageCircle size={11} /> WhatsApp
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {o.customer_email && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                          <span className="text-[10px] text-slate-500">@</span>
+                        </div>
+                        <span className="text-sm text-slate-700 truncate">{o.customer_email}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Dirección de entrega */}
+                {o.order_type === 'delivery' && addr?.street && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Dirección de entrega</p>
+                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                      <MapPin size={13} className="text-amber-500 mt-0.5 shrink-0" />
+                      <div className="text-sm text-slate-700 leading-snug">
+                        <p className="font-medium">{addr.street}</p>
+                        {addr.neighborhood && <p className="text-slate-500">{addr.neighborhood}</p>}
+                        {addr.city && <p className="text-slate-500">{addr.city}</p>}
+                        {addr.references && (
+                          <p className="text-xs text-slate-400 italic mt-1">Ref: {addr.references}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pedido */}
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Pedido</p>
+                  {items.length > 0 && (
+                    <ul className="space-y-0.5">
+                      {items.map((item, i) => (
+                        <li key={i} className="flex items-center gap-1.5 text-sm text-slate-700">
+                          <span className="w-5 text-center font-semibold text-slate-400 text-xs">{item.quantity}×</span>
+                          {item.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {extO.order_text && (
+                    <p className="text-sm text-slate-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 leading-relaxed">
+                      {extO.order_text}
+                    </p>
+                  )}
+                  {o.notes && (
+                    <p className="text-xs text-yellow-800 bg-yellow-50 rounded-lg px-3 py-2">
+                      📝 {o.notes}
+                    </p>
+                  )}
+                </div>
+
+                {/* Total */}
+                {Number(o.total) > 0 && (
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <span className="text-sm text-muted-foreground">Total</span>
+                    <span className="font-bold text-base">{fmt(Number(o.total))}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Modal cotización ──────────────────────────────────── */}
       {quoteOrder && (
