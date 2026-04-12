@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Package, ImagePlus, Loader2, X } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils/helpers'
@@ -125,13 +125,12 @@ export default function CombosList({ initialCombos, restaurantId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreate}>
-              <Plus size={16} className="mr-2" /> Nuevo paquete
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <Button onClick={openCreate}>
+          <Plus size={16} className="mr-2" /> Nuevo paquete
+        </Button>
+      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editing ? 'Editar paquete' : 'Nuevo paquete'}</DialogTitle>
             </DialogHeader>
@@ -187,9 +186,8 @@ export default function CombosList({ initialCombos, restaurantId }: Props) {
                 {loading ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear paquete'}
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       {combos.length === 0 ? (
         <Card>
