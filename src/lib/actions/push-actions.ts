@@ -19,11 +19,15 @@ export async function notifyNewOrder(params: {
   shortId:       string    // últimos 5 chars del UUID
 }) {
   const { restaurantId, orderId, total, isPaid, shortId } = params
-  const paymentLabel = isPaid ? 'pagado con tarjeta 💳' : 'efectivo al recibir 💵'
+
+  // Orden de tienda sin precio fijo aún (total=0 = pendiente de cotización)
+  const body = total === 0
+    ? `Por cotizar — #${shortId}`
+    : `${fmt(total)} ${isPaid ? 'pagado con tarjeta 💳' : 'efectivo al recibir 💵'} — #${shortId}`
 
   await notifyRestaurant(restaurantId, {
     title: '🛎️ Nuevo pedido',
-    body:  `${fmt(total)} ${paymentLabel} — #${shortId}`,
+    body,
     url:   '/dashboard/orders',
     tag:   `new-order-${orderId}`,
   })
@@ -43,11 +47,12 @@ export async function notifyOrderStatusChanged(params: {
   orderTotal?:      number
   deliveryFee?:     number
   rejectionMessage?: string
+  isPaid?:          boolean  // true = tarjeta, false = efectivo al recibir
 }) {
   const {
     orderId, newStatus,
     orderType, driverId, restaurantSlug, shortId,
-    restaurantId, orderTotal, deliveryFee, rejectionMessage,
+    restaurantId, orderTotal, deliveryFee, rejectionMessage, isPaid,
   } = params
   const isDelivery = orderType === 'delivery'
   const trackUrl   = restaurantSlug ? `/${restaurantSlug}/order/${orderId}` : `/order/${orderId}`
@@ -86,10 +91,20 @@ export async function notifyOrderStatusChanged(params: {
         url:   trackUrl,
         tag:   `order-${orderId}`,
       })
-      if (restaurantId) {
+      if (restaurantId && orderTotal) {
+        const paymentNote = isPaid
+          ? `💳 Pago de ${fmt(orderTotal)} recibido con tarjeta`
+          : `💵 Cobrar ${fmt(orderTotal)} al cliente`
         await notifyRestaurant(restaurantId, {
           title: '✅ Cliente aceptó el pedido',
-          body:  `Pedido #${id}${orderTotal ? ` · ${fmt(orderTotal)}` : ''} — cliente pagó o confirmó`,
+          body:  `${paymentNote} — #${id}`,
+          url:   '/dashboard/orders',
+          tag:   `accepted-${orderId}`,
+        })
+      } else if (restaurantId) {
+        await notifyRestaurant(restaurantId, {
+          title: '✅ Cliente aceptó el pedido',
+          body:  `Pedido #${id} confirmado`,
           url:   '/dashboard/orders',
           tag:   `accepted-${orderId}`,
         })

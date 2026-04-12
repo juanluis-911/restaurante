@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -73,10 +73,47 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
   const isStore = businessType === 'store'
   const supabase = createClient()
 
-  const { isSupported, isSubscribed, subscribe } = usePushNotifications({
+  const { isSupported, isSubscribed, permissionState, subscribe } = usePushNotifications({
     type: 'restaurant',
     id:   restaurantId,
   })
+
+  const knownOrderIds = useRef<Set<string>>(new Set(initialOrders.map((o) => o.id)))
+
+  function playChime() {
+    try {
+      const ctx = new AudioContext()
+
+      // Patrón UberEats: dos pulsos graves cortos + campana aguda
+      // Pulso 1: golpe bajo (190 Hz, triangular, breve)
+      // Pulso 2: golpe bajo repetido (190 Hz, triangular, breve)
+      // Nota: campana alta (1320 Hz, sine, larga)
+      const playNote = (
+        freq: number, type: OscillatorType,
+        start: number, attackEnd: number, releaseEnd: number,
+        peakGain: number
+      ) => {
+        const osc  = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.type = type
+        osc.frequency.setValueAtTime(freq, start)
+        gain.gain.setValueAtTime(0, start)
+        gain.gain.linearRampToValueAtTime(peakGain, attackEnd)
+        gain.gain.exponentialRampToValueAtTime(0.001, releaseEnd)
+        osc.start(start)
+        osc.stop(releaseEnd)
+      }
+
+      const t = ctx.currentTime
+      playNote(190,  'triangle', t,        t + 0.01, t + 0.18, 0.55) // pulso 1
+      playNote(190,  'triangle', t + 0.22, t + 0.23, t + 0.40, 0.55) // pulso 2
+      playNote(1320, 'sine',     t + 0.38, t + 0.39, t + 0.85, 0.30) // campana
+
+      setTimeout(() => ctx.close(), 1500)
+    } catch { /* AudioContext no soportado */ }
+  }
 
   const fetchActive = useCallback(async () => {
     const { data } = await supabase
@@ -85,7 +122,12 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
       .eq('restaurant_id', restaurantId)
       .not('status', 'in', '("delivered","cancelled")')
       .order('created_at', { ascending: true })
-    if (data) setOrders(data as unknown as Order[])
+    if (data) {
+      const newOrders = data.filter((o) => !knownOrderIds.current.has(o.id))
+      if (newOrders.length > 0) playChime()
+      knownOrderIds.current = new Set(data.map((o) => o.id))
+      setOrders(data as unknown as Order[])
+    }
   }, [supabase, restaurantId])
 
   useEffect(() => {
@@ -216,24 +258,25 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
           </button>
         </div>
 
-        {isSupported && (
+        {isSupported && permissionState === 'default' && (
           <button
             onClick={async () => {
-              if (isSubscribed) return
               const ok = await subscribe()
               if (ok) toast.success('Notificaciones activadas ✓')
               else    toast.error('No se pudo activar las notificaciones')
             }}
-            title={isSubscribed ? 'Notificaciones activas' : 'Activar notificaciones push'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              isSubscribed
-                ? 'bg-green-50 border-green-200 text-green-700 cursor-default'
-                : 'hover:bg-muted border-border text-muted-foreground'
-            }`}
+            title="Activar notificaciones push para nuevos pedidos"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors hover:bg-muted border-border text-muted-foreground"
           >
-            {isSubscribed ? <Bell size={13} /> : <BellOff size={13} />}
-            {isSubscribed ? 'Notificaciones activas' : 'Activar notificaciones'}
+            <BellOff size={13} />
+            Activar notificaciones
           </button>
+        )}
+        {isSupported && permissionState === 'granted' && isSubscribed && (
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-green-50 border border-green-200 text-green-700">
+            <Bell size={13} />
+            Notificaciones activas
+          </span>
         )}
       </div>
 

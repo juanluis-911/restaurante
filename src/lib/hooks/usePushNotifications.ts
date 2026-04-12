@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 type PushContext =
   | { type: 'restaurant'; id: string }
@@ -20,14 +20,17 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
 export function usePushNotifications(context: PushContext) {
   const [isSupported,  setIsSupported]  = useState(false)
   const [isSubscribed, setIsSubscribed] = useState(false)
+  const [permissionState, setPermissionState] = useState<NotificationPermission>('default')
+  const autoSubDone = useRef(false)
 
   useEffect(() => {
-    setIsSupported(
+    const supported =
       typeof window !== 'undefined' &&
       'serviceWorker' in navigator &&
       'PushManager' in window &&
       'Notification' in window
-    )
+    setIsSupported(supported)
+    if (supported) setPermissionState(Notification.permission)
   }, [])
 
   const subscribe = useCallback(async (): Promise<boolean> => {
@@ -35,6 +38,7 @@ export function usePushNotifications(context: PushContext) {
 
     try {
       const permission = await Notification.requestPermission()
+      setPermissionState(permission)
       if (permission !== 'granted') return false
 
       const registration = await navigator.serviceWorker.ready
@@ -80,5 +84,13 @@ export function usePushNotifications(context: PushContext) {
     })
   }, [isSupported])
 
-  return { isSupported, isSubscribed, subscribe }
+  // Auto-suscribir silenciosamente si el permiso ya fue otorgado antes
+  useEffect(() => {
+    if (!isSupported || autoSubDone.current) return
+    if (Notification.permission !== 'granted') return
+    autoSubDone.current = true
+    subscribe()
+  }, [isSupported, subscribe])
+
+  return { isSupported, isSubscribed, permissionState, subscribe }
 }

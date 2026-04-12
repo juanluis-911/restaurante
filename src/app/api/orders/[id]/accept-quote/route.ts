@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { notifyOrderStatusChanged } from '@/lib/actions/push-actions'
 
 export async function POST(
@@ -7,24 +7,21 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  // Usar service role: el cliente que acepta puede ser anónimo (sin sesión)
+  const supabase = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
   const { data: order, error: fetchError } = await supabase
     .from('orders')
-    .select('id, restaurant_id, status, total, customer_email')
+    .select('id, restaurant_id, status, total, order_type')
     .eq('id', id)
     .single()
 
   if (fetchError || !order) {
     return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
-  }
-
-  // Solo el cliente dueño del pedido puede aceptar
-  if (order.customer_email !== user.email) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   if (order.status !== 'quoted') {
@@ -33,7 +30,7 @@ export async function POST(
 
   const { error: updateError } = await supabase
     .from('orders')
-    .update({ status: 'accepted', updated_at: new Date().toISOString() })
+    .update({ status: 'accepted' })
     .eq('id', id)
 
   if (updateError) {
@@ -41,10 +38,12 @@ export async function POST(
   }
 
   notifyOrderStatusChanged({
-    orderId: id,
+    orderId:      id,
     restaurantId: order.restaurant_id,
-    newStatus: 'accepted',
-    orderTotal: order.total,
+    newStatus:    'accepted',
+    orderTotal:   order.total,
+    orderType:    order.order_type,
+    isPaid:       false, // efectivo al recibir
   }).catch(() => {/* silencioso */})
 
   return NextResponse.json({ ok: true })

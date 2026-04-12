@@ -57,7 +57,7 @@ export default function OrderTracker({ initialOrder }: Props) {
   const supabase = createClient()
   const restaurant = order.restaurants
 
-  const { isSupported, isSubscribed, subscribe } = usePushNotifications({
+  const { isSupported, isSubscribed, permissionState, subscribe } = usePushNotifications({
     type: 'order',
     id:   order.id,
   })
@@ -207,22 +207,24 @@ export default function OrderTracker({ initialOrder }: Props) {
                 ✓ Completado
               </span>
             )}
-            {isSupported && !isDelivered && (
+            {isSupported && !isDelivered && permissionState === 'default' && (
               <button
-                onClick={async () => {
-                  if (isSubscribed) return
-                  await subscribe()
-                }}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  isSubscribed
-                    ? 'bg-white/20 cursor-default'
-                    : 'bg-white/10 hover:bg-white/25 border border-white/30'
-                }`}
-                title={isSubscribed ? 'Recibirás notificaciones de tu pedido' : 'Activar notificaciones del pedido'}
+                onClick={async () => { await subscribe() }}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors bg-white/10 hover:bg-white/25 border border-white/30"
+                title="Activar notificaciones de este pedido"
               >
                 <Bell size={11} />
-                {isSubscribed ? 'Notificaciones activas' : 'Notificarme'}
+                Notificarme
               </button>
+            )}
+            {isSupported && !isDelivered && permissionState === 'granted' && isSubscribed && (
+              <span
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium bg-white/20 cursor-default"
+                title="Recibirás notificaciones de tu pedido"
+              >
+                <Bell size={11} />
+                Notificaciones activas
+              </span>
             )}
           </div>
         </div>

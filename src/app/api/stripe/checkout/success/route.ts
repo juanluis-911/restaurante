@@ -61,8 +61,9 @@ export async function GET(request: NextRequest) {
       notifyOrderStatusChanged({
         orderId,
         restaurantId: meta.restaurant_id,
-        newStatus: 'accepted',
-        orderTotal: session.amount_total ? session.amount_total / 100 : 0,
+        newStatus:    'accepted',
+        orderTotal:   session.amount_total ? session.amount_total / 100 : 0,
+        isPaid:       true, // pagado con tarjeta
       }).catch(() => {/* silencioso */})
 
       return Response.redirect(`${baseUrl}/${slug}/order/${orderId}?paid=1`)
