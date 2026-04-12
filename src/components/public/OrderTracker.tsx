@@ -133,18 +133,32 @@ export default function OrderTracker({ initialOrder }: Props) {
   }
 
   if (order.status === 'cancelled') {
+    const waNumber = restaurant?.phone?.replace(/\D/g, '')
+    const waText   = encodeURIComponent(
+      `Hola, mi pedido #${order.id.slice(-6).toUpperCase()} fue cancelado. ¿Pueden ayudarme?`
+    )
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-sm border p-8 text-center max-w-sm w-full space-y-3">
+        <div className="bg-white rounded-3xl shadow-sm border p-8 text-center max-w-sm w-full space-y-4">
           <div className="text-6xl">😔</div>
-          <h1 className="text-xl font-bold text-slate-800">Pedido cancelado</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Tu pedido #{order.id.slice(-6).toUpperCase()} fue cancelado.
-            {restaurant?.phone && (
-              <> Llama al <span className="font-medium text-slate-700">{restaurant.phone}</span> si tienes dudas.</>
-            )}
-          </p>
-          <a href="/cliente" className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">Pedido cancelado</h1>
+            <p className="text-sm text-muted-foreground leading-relaxed mt-1">
+              Tu pedido #{order.id.slice(-6).toUpperCase()} fue cancelado.
+            </p>
+          </div>
+          {waNumber && (
+            <a
+              href={`https://wa.me/${waNumber}?text=${waText}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 active:scale-95 text-white font-semibold px-5 py-3 rounded-2xl transition-all text-sm"
+            >
+              <MessageCircle size={16} />
+              Contactar a {restaurant?.name} por WhatsApp
+            </a>
+          )}
+          <a href="/cliente" className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 hover:text-slate-700 transition-colors">
             Ver mis pedidos <ChevronRight size={14} />
           </a>
         </div>
@@ -532,6 +546,33 @@ export default function OrderTracker({ initialOrder }: Props) {
             )}
           </div>
         </div>
+
+        {/* ── Contactar al negocio (WhatsApp) ───────────── */}
+        {restaurant?.phone && (() => {
+          const waNumber = restaurant.phone!.replace(/\D/g, '')
+          const waText   = encodeURIComponent(
+            `Hola, tengo una pregunta sobre mi pedido #${order.id.slice(-6).toUpperCase()} 🙂`
+          )
+          return (
+            <a
+              href={`https://wa.me/${waNumber}?text=${waText}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between bg-white rounded-2xl shadow-sm border px-4 py-3.5 hover:bg-green-50 active:scale-[.98] transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-500 text-white">
+                  <MessageCircle size={17} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Contactar a {restaurant.name}</p>
+                  <p className="text-xs text-muted-foreground">Enviar mensaje por WhatsApp</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-slate-300" />
+            </a>
+          )
+        })()}
 
         {/* ── Mi cuenta ──────────────────────────────────── */}
         <a
