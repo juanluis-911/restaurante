@@ -7,9 +7,15 @@ import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? 'https://turieats.com'
+
 export const metadata: Metadata = {
-  title: 'TuriEats',
-  description: 'Pide en línea en tus restaurantes favoritos – TuriEats',
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default:  'TuriEats',
+    template: '%s · TuriEats',
+  },
+  description: 'Pide en línea en tus restaurantes y tiendas favoritas. Menú fijo o pedido libre, pago en línea y seguimiento en tiempo real.',
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -19,10 +25,41 @@ export const metadata: Metadata = {
     ],
     apple: '/icons/icon-192x192.png',
   },
+  openGraph: {
+    type:        'website',
+    locale:      'es_MX',
+    url:         BASE_URL,
+    siteName:    'TuriEats',
+    title:       'TuriEats — Pide en línea donde quieras',
+    description: 'Pide en línea en tus restaurantes y tiendas favoritas. Menú fijo o pedido libre, pago en línea y seguimiento en tiempo real.',
+    images: [
+      {
+        url:    '/icons/icon-512x512.png',
+        width:  512,
+        height: 512,
+        alt:    'TuriEats',
+      },
+    ],
+  },
+  twitter: {
+    card:        'summary',
+    title:       'TuriEats — Pide en línea donde quieras',
+    description: 'Pide en línea en tus restaurantes y tiendas favoritas. Menú fijo o pedido libre, pago en línea y seguimiento en tiempo real.',
+    images:      ['/icons/icon-512x512.png'],
+  },
+  robots: {
+    index:               true,
+    follow:              true,
+    googleBot: {
+      index:             true,
+      follow:            true,
+      'max-image-preview': 'large',
+    },
+  },
   appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'TuriEats',
+    capable:         true,
+    statusBarStyle:  'default',
+    title:           'TuriEats',
   },
   formatDetection: { telephone: false },
 }

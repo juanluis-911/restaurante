@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# No indexar el admin ni rutas privadas
+Disallow: /dashboard/
+Disallow: /auth/
+Disallow: /driver/
+Disallow: /cliente/
+Disallow: /api/
+
+Sitemap: https://turieats.com/sitemap.xml
