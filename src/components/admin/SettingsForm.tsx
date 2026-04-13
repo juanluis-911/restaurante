@@ -9,17 +9,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Bike, Car, Zap, Plus, X, Globe, Users, CreditCard, CheckCircle2, AlertCircle, ExternalLink, Unlink, Upload, ImageIcon } from 'lucide-react'
+import { Plus, X, Globe, Users, CreditCard, CheckCircle2, AlertCircle, ExternalLink, Unlink, Upload, ImageIcon, Phone } from 'lucide-react'
 import QRShareCard from '@/components/admin/QRShareCard'
 import FlyerGenerator from '@/components/admin/FlyerGenerator'
 import type { Database } from '@/types/database'
 
 type Restaurant = Database['public']['Tables']['restaurants']['Row']
 type Hour = Database['public']['Tables']['restaurant_hours']['Row']
-type Driver = { id: string; name: string; whatsapp: string; vehicle_type: 'moto' | 'carro' | 'bicicleta'; status: string }
-
-const VEHICLE_ICON = { moto: Zap, carro: Car, bicicleta: Bike }
-const VEHICLE_LABEL = { moto: 'Moto', carro: 'Carro', bicicleta: 'Bicicleta' }
+type OwnDriver = { id: string; name: string; whatsapp: string | null }
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -122,14 +119,14 @@ export default function SettingsForm({ restaurant, hours, stripeConnected, strip
 
   const [hoursState, setHoursState] = useState<Hour[]>(hours)
 
-  // ── Repartidores ─────────────────────────────────────────────
-  const [driverMode, setDriverMode]   = useState<'global' | 'own'>(
+  // ── Repartidores propios ──────────────────────────────────────
+  const [driverMode,    setDriverMode]    = useState<'global' | 'own'>(
     (restaurant.driver_mode as 'global' | 'own') ?? 'global'
   )
-  const [ownDrivers, setOwnDrivers]   = useState<Driver[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<Driver[]>([])
-  const [addingDriver, setAddingDriver]   = useState(false)
+  const [ownDrivers,    setOwnDrivers]    = useState<OwnDriver[]>([])
+  const [newDriverName, setNewDriverName] = useState('')
+  const [newDriverWA,   setNewDriverWA]   = useState('')
+  const [addingDriver,  setAddingDriver]  = useState(false)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any
@@ -137,53 +134,40 @@ export default function SettingsForm({ restaurant, hours, stripeConnected, strip
   useEffect(() => {
     if (driverMode !== 'own') return
     sb
-      .from('restaurant_drivers')
-      .select('drivers(id, name, whatsapp, vehicle_type, status)')
+      .from('restaurant_own_drivers')
+      .select('id, name, whatsapp')
       .eq('restaurant_id', restaurant.id)
-      .then(({ data }: { data: { drivers: Driver | null }[] | null }) => {
-        if (data) {
-          setOwnDrivers(data.flatMap((row) => (row.drivers ? [row.drivers] : [])))
-        }
+      .order('name')
+      .then(({ data }: { data: OwnDriver[] | null }) => {
+        if (data) setOwnDrivers(data)
       })
   }, [driverMode, restaurant.id, sb])
 
-  async function searchDrivers(q: string) {
-    setSearchQuery(q)
-    if (q.trim().length < 2) { setSearchResults([]); return }
-    const { data } = await sb
-      .from('drivers')
-      .select('id, name, whatsapp, vehicle_type, status')
-      .ilike('name', `%${q}%`)
-      .limit(10)
-    setSearchResults((data ?? []) as Driver[])
-  }
-
-  async function addDriver(driver: Driver) {
-    if (ownDrivers.find((d) => d.id === driver.id)) {
-      toast.info('Este repartidor ya está asignado')
-      return
-    }
+  async function addOwnDriver() {
+    const name = newDriverName.trim()
+    if (!name) { toast.error('Escribe el nombre del repartidor'); return }
     setAddingDriver(true)
-    const { error } = await sb
-      .from('restaurant_drivers')
-      .insert({ restaurant_id: restaurant.id, driver_id: driver.id })
+    const { data, error } = await sb
+      .from('restaurant_own_drivers')
+      .insert({ restaurant_id: restaurant.id, name, whatsapp: newDriverWA.trim() || null })
+      .select('id, name, whatsapp')
+      .single()
     if (error) { toast.error('No se pudo agregar'); setAddingDriver(false); return }
-    setOwnDrivers((prev) => [...prev, driver])
-    setSearchQuery('')
-    setSearchResults([])
+    setOwnDrivers((prev) => [...prev, data as OwnDriver])
+    setNewDriverName('')
+    setNewDriverWA('')
     setAddingDriver(false)
-    toast.success(`${driver.name} agregado`)
+    toast.success(`${name} agregado`)
   }
 
-  async function removeDriver(driverId: string) {
+  async function removeOwnDriver(id: string) {
     const { error } = await sb
-      .from('restaurant_drivers')
+      .from('restaurant_own_drivers')
       .delete()
-      .eq('restaurant_id', restaurant.id)
-      .eq('driver_id', driverId)
+      .eq('id', id)
     if (error) { toast.error('No se pudo eliminar'); return }
-    setOwnDrivers((prev) => prev.filter((d) => d.id !== driverId))
-    toast.success('Repartidor removido')
+    setOwnDrivers((prev) => prev.filter((d) => d.id !== id))
+    toast.success('Repartidor eliminado')
   }
 
   function updateHour(dayOfWeek: number, field: string, value: string | boolean) {
@@ -537,7 +521,7 @@ export default function SettingsForm({ restaurant, hours, stripeConnected, strip
               <Users size={22} className={driverMode === 'own' ? 'text-primary' : 'text-muted-foreground'} />
               <span className="text-sm font-medium">Propios</span>
               <span className="text-xs text-muted-foreground text-center leading-tight">
-                Solo los repartidores que tú asignes podrán tomar pedidos
+                Tus propios repartidores. Tú marcas el pedido como entregado
               </span>
             </button>
           </div>
@@ -545,75 +529,64 @@ export default function SettingsForm({ restaurant, hours, stripeConnected, strip
           {/* Lista de repartidores propios */}
           {driverMode === 'own' && (
             <div className="space-y-3">
-              <Label>Repartidores asignados</Label>
+              <Label>Tus repartidores</Label>
 
               {ownDrivers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay repartidores asignados aún.</p>
+                <p className="text-sm text-muted-foreground">Aún no hay repartidores guardados.</p>
               ) : (
                 <div className="space-y-2">
-                  {ownDrivers.map((d) => {
-                    const VIcon = VEHICLE_ICON[d.vehicle_type]
-                    return (
-                      <div key={d.id} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <VIcon size={14} className="text-muted-foreground shrink-0" />
-                          <span className="text-sm font-medium">{d.name}</span>
-                          <Badge variant="secondary" className="text-xs">{VEHICLE_LABEL[d.vehicle_type]}</Badge>
-                          <Badge
-                            variant={d.status === 'available' ? 'default' : d.status === 'busy' ? 'outline' : 'secondary'}
-                            className="text-xs"
-                          >
-                            {d.status === 'available' ? 'Disponible' : d.status === 'busy' ? 'Ocupado' : 'Fuera de línea'}
-                          </Badge>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeDriver(d.id)}
-                          className="text-muted-foreground hover:text-destructive transition-colors"
-                        >
-                          <X size={14} />
-                        </button>
+                  {ownDrivers.map((d) => (
+                    <div key={d.id} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-medium truncate">🛵 {d.name}</span>
+                        {d.whatsapp && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+                            <Phone size={11} /> {d.whatsapp}
+                          </span>
+                        )}
                       </div>
-                    )
-                  })}
+                      <button
+                        type="button"
+                        onClick={() => removeOwnDriver(d.id)}
+                        className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Buscar y agregar */}
-              <div className="space-y-2">
+              {/* Agregar repartidor */}
+              <div className="space-y-2 pt-1">
                 <Label>Agregar repartidor</Label>
-                <div className="relative">
+                <div className="flex gap-2">
                   <Input
-                    placeholder="Buscar por nombre..."
-                    value={searchQuery}
-                    onChange={(e) => searchDrivers(e.target.value)}
+                    placeholder="Nombre"
+                    value={newDriverName}
+                    onChange={(e) => setNewDriverName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addOwnDriver()}
+                    className="flex-1"
                   />
-                  {searchResults.length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md">
-                      {searchResults.map((d) => {
-                        const VIcon = VEHICLE_ICON[d.vehicle_type]
-                        const alreadyAdded = ownDrivers.some((od) => od.id === d.id)
-                        return (
-                          <button
-                            key={d.id}
-                            type="button"
-                            disabled={alreadyAdded || addingDriver}
-                            onClick={() => addDriver(d)}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors disabled:opacity-50"
-                          >
-                            <VIcon size={13} className="text-muted-foreground shrink-0" />
-                            <span className="font-medium">{d.name}</span>
-                            <span className="text-muted-foreground">{VEHICLE_LABEL[d.vehicle_type]}</span>
-                            {alreadyAdded && <span className="ml-auto text-xs text-muted-foreground">ya asignado</span>}
-                            {!alreadyAdded && <Plus size={13} className="ml-auto text-muted-foreground" />}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
+                  <Input
+                    placeholder="WhatsApp (opcional)"
+                    value={newDriverWA}
+                    onChange={(e) => setNewDriverWA(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addOwnDriver()}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={addOwnDriver}
+                    disabled={addingDriver || !newDriverName.trim()}
+                    className="shrink-0"
+                  >
+                    <Plus size={14} />
+                  </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  El repartidor debe registrarse primero en <span className="font-mono">/driver/login</span>
+                  No necesitan registrarse. Los podrás asignar al mover pedidos a &ldquo;En camino&rdquo;.
                 </p>
               </div>
             </div>

@@ -411,6 +411,8 @@ export type Database = {
           notes: string | null
           order_text: string | null
           order_type: string
+          own_driver_name: string | null
+          own_driver_whatsapp: string | null
           pos_session_id: string | null
           quote_message: string | null
           rejection_message: string | null
@@ -442,6 +444,8 @@ export type Database = {
           notes?: string | null
           order_text?: string | null
           order_type: string
+          own_driver_name?: string | null
+          own_driver_whatsapp?: string | null
           pos_session_id?: string | null
           quote_message?: string | null
           rejection_message?: string | null
@@ -473,6 +477,8 @@ export type Database = {
           notes?: string | null
           order_text?: string | null
           order_type?: string
+          own_driver_name?: string | null
+          own_driver_whatsapp?: string | null
           pos_session_id?: string | null
           quote_message?: string | null
           rejection_message?: string | null
@@ -740,6 +746,30 @@ export type Database = {
           driver_id?: string
           id?: string
           restaurant_id?: string
+        }
+        Relationships: []
+      }
+      restaurant_own_drivers: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          restaurant_id: string
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          restaurant_id: string
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          restaurant_id?: string
+          whatsapp?: string | null
         }
         Relationships: []
       }

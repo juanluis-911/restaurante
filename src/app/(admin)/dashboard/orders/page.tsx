@@ -30,6 +30,7 @@ export default async function OrdersPage() {
         restaurantId={restaurant.id}
         restaurantSlug={restaurant.slug}
         businessType={restaurant.business_type}
+        driverMode={restaurant.driver_mode ?? 'global'}
       />
     </div>
   )

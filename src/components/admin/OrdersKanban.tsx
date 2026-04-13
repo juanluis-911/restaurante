@@ -16,6 +16,7 @@ import { notifyOrderStatusChanged } from '@/lib/actions/push-actions'
 type Order = Database['public']['Tables']['orders']['Row'] & {
   drivers?: { name: string; whatsapp: string; vehicle_type: 'moto' | 'carro' | 'bicicleta' } | null
 }
+type OwnDriver = { id: string; name: string; whatsapp: string | null }
 type OrderStatus = Order['status']
 
 const COLUMNS: { key: OrderStatus; label: string; color: string; nextLabel: string }[] = [
@@ -68,9 +69,10 @@ interface Props {
   restaurantId:   string
   restaurantSlug: string
   businessType?:  string
+  driverMode?:    string
 }
 
-export default function OrdersKanban({ initialOrders, restaurantId, restaurantSlug, businessType }: Props) {
+export default function OrdersKanban({ initialOrders, restaurantId, restaurantSlug, businessType, driverMode }: Props) {
   const [orders,        setOrders]        = useState<Order[]>(initialOrders)
   const [history,       setHistory]       = useState<Order[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
@@ -83,9 +85,15 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
   const [quoteLoading,  setQuoteLoading]  = useState(false)
   const [connected,     setConnected]     = useState(false)
   const [highlightIds,  setHighlightIds]  = useState<Set<string>>(new Set())
-  const [todayStats,    setTodayStats]    = useState<{ count: number; revenue: number } | null>(null)
+  const [todayStats,         setTodayStats]         = useState<{ count: number; revenue: number } | null>(null)
+  const [assignDriverOrder,  setAssignDriverOrder]  = useState<Order | null>(null)
+  const [assignDriverName,   setAssignDriverName]   = useState('')
+  const [assignDriverWA,     setAssignDriverWA]     = useState('')
+  const [ownDriversList,     setOwnDriversList]     = useState<OwnDriver[]>([])
+  const [assignLoading,      setAssignLoading]      = useState(false)
 
   const isStore = businessType === 'store'
+  const isOwnMode = driverMode === 'own'
   const supabase = createClient()
 
   const { isSupported, isSubscribed, permissionState, subscribe } = usePushNotifications({
@@ -146,6 +154,20 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
 
   // Limpiar al desmontar
   useEffect(() => () => stopAlert(), [])
+
+  // ── Repartidores propios ───────────────────────────────────
+  useEffect(() => {
+    if (!isOwnMode) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(supabase as any)
+      .from('restaurant_own_drivers')
+      .select('id, name, whatsapp')
+      .eq('restaurant_id', restaurantId)
+      .order('name')
+      .then(({ data }: { data: OwnDriver[] | null }) => {
+        if (data) setOwnDriversList(data)
+      })
+  }, [isOwnMode, restaurantId, supabase])
 
   // ── Stats del día ──────────────────────────────────────────
   const fetchTodayStats = useCallback(async () => {
@@ -212,10 +234,51 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
     setHistoryLoaded(true)
   }
 
+  async function markDeliveredOwn(order: Order) {
+    const { error } = await supabase.from('orders').update({ status: 'delivered' }).eq('id', order.id)
+    if (error) { toast.error('No se pudo actualizar'); return }
+    toast.success('Pedido entregado ✓')
+    notifyOrderStatusChanged({
+      orderId: order.id, newStatus: 'delivered', orderType: order.order_type,
+      driverId: order.driver_id ?? null, restaurantSlug,
+      shortId: order.id.slice(-5).toUpperCase(),
+    }).catch(() => {})
+  }
+
+  async function confirmAssignDriver() {
+    if (!assignDriverOrder) return
+    setAssignLoading(true)
+    const updates: Record<string, string | null> = { status: 'on_the_way' }
+    if (assignDriverName.trim()) {
+      updates.own_driver_name    = assignDriverName.trim()
+      updates.own_driver_whatsapp = assignDriverWA.trim() || null
+    }
+    const { error } = await supabase.from('orders').update(updates).eq('id', assignDriverOrder.id)
+    setAssignLoading(false)
+    if (error) { toast.error('No se pudo actualizar'); return }
+    toast.success('Pedido entregado al repartidor 🛵')
+    notifyOrderStatusChanged({
+      orderId: assignDriverOrder.id, newStatus: 'on_the_way', orderType: assignDriverOrder.order_type,
+      driverId: assignDriverOrder.driver_id ?? null, restaurantSlug,
+      shortId: assignDriverOrder.id.slice(-5).toUpperCase(),
+    }).catch(() => {})
+    setAssignDriverOrder(null)
+    setAssignDriverName('')
+    setAssignDriverWA('')
+  }
+
   async function advanceStatus(order: Order) {
     let next = NEXT_STATUS[order.status]
     if (order.status === 'ready' && order.order_type === 'delivery') next = 'on_the_way'
     if (!next) return
+
+    // En modo propio, al pasar a on_the_way abrimos el modal de asignar repartidor
+    if (next === 'on_the_way' && isOwnMode) {
+      setAssignDriverOrder(order)
+      setAssignDriverName('')
+      setAssignDriverWA('')
+      return
+    }
 
     const { error } = await supabase.from('orders').update({ status: next }).eq('id', order.id)
     if (error) { toast.error('No se pudo actualizar'); return }
@@ -479,14 +542,20 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
                           )}
 
                           {order.order_type === 'delivery' && (() => {
+                            const ownName = order.own_driver_name
                             const VIcon = order.drivers
                               ? { moto: Zap, carro: Car, bicicleta: Bike }[order.drivers.vehicle_type]
                               : null
+                            const hasDriver = order.drivers || ownName
                             return (
                               <div className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded mb-2 ${
-                                order.drivers ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                                hasDriver ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
                               }`}>
-                                {order.drivers && VIcon ? <><VIcon size={11} />{order.drivers.name}</> : <>🛵 Sin repartidor</>}
+                                {order.drivers && VIcon
+                                  ? <><VIcon size={11} />{order.drivers.name}</>
+                                  : ownName
+                                    ? <>🛵 {ownName}</>
+                                    : <>🛵 Sin repartidor</>}
                               </div>
                             )
                           })()}
@@ -501,6 +570,14 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
                                 onClick={() => advanceStatus(order)}
                               >
                                 {cardNextLabel} <ChevronRight size={11} className="ml-1" />
+                              </Button>
+                            ) : key === 'on_the_way' && isOwnMode ? (
+                              <Button
+                                size="sm"
+                                className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700"
+                                onClick={() => markDeliveredOwn(order)}
+                              >
+                                Entregado ✓
                               </Button>
                             ) : (
                               <div className="flex-1 flex items-center justify-center h-7 text-xs text-purple-600 font-medium bg-purple-50 rounded-md">
@@ -854,6 +931,90 @@ export default function OrdersKanban({ initialOrders, restaurantId, restaurantSl
                 className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-50"
               >
                 {quoteLoading ? 'Enviando…' : 'Enviar cotización'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal asignar repartidor propio ──────────────────── */}
+      {assignDriverOrder && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50" onClick={() => setAssignDriverOrder(null)}>
+          <div
+            className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-slate-800">Asignar repartidor</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Pedido #{assignDriverOrder.id.slice(-5).toUpperCase()} — {assignDriverOrder.customer_name}
+                </p>
+              </div>
+              <button onClick={() => setAssignDriverOrder(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Selección rápida de repartidores guardados */}
+            {ownDriversList.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Seleccionar repartidor</p>
+                <div className="flex flex-wrap gap-2">
+                  {ownDriversList.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => { setAssignDriverName(d.name); setAssignDriverWA(d.whatsapp ?? '') }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        assignDriverName === d.name
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'border-border hover:bg-muted'
+                      }`}
+                    >
+                      🛵 {d.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Nombre del repartidor <span className="text-muted-foreground font-normal">(opcional)</span></label>
+                <input
+                  type="text"
+                  placeholder="Ej: Carlos"
+                  value={assignDriverName}
+                  onChange={(e) => setAssignDriverName(e.target.value)}
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">WhatsApp <span className="text-muted-foreground font-normal">(opcional)</span></label>
+                <input
+                  type="tel"
+                  placeholder="Ej: 5512345678"
+                  value={assignDriverWA}
+                  onChange={(e) => setAssignDriverWA(e.target.value)}
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setAssignDriverOrder(null)}
+                className="flex-1 py-2.5 rounded-xl border text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmAssignDriver}
+                disabled={assignLoading}
+                className="flex-1 py-2.5 rounded-xl bg-purple-600 text-white text-sm font-semibold disabled:opacity-50"
+              >
+                {assignLoading ? 'Guardando…' : 'Entregar a repartidor 🛵'}
               </button>
             </div>
           </div>
